@@ -1,0 +1,366 @@
+package com.example.ui
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.data.Achievement
+import com.example.data.AuthorStatus
+import com.example.data.Chapter
+import com.example.data.Comment
+import com.example.data.CustomCollection
+import com.example.data.DayStatus
+import com.example.data.LibraryTab
+import com.example.data.MilestoneEvent
+import com.example.data.NoveliteNotification
+import com.example.data.NoveliteRepository
+import com.example.data.ReaderConfig
+import com.example.data.ReportItem
+import com.example.data.Story
+import com.example.data.StoryStatus
+import com.example.data.StreakHistoryDay
+import com.example.data.UserProfile
+import com.example.data.UserRole
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+enum class Screen {
+  AUTH,
+  ONBOARDING,
+  HOME,
+  EXPLORE,
+  LIBRARY,
+  WRITE,
+  PROFILE,
+  STORY_DETAIL,
+  READER,
+  STREAK_DASHBOARD,
+  NOTIFICATIONS,
+  ADMIN
+}
+
+data class CelebrationState(
+  val isVisible: Boolean = false,
+  val streakDays: Int = 12,
+  val goalMinutes: Int = 10,
+  val badgeName: String? = null
+)
+
+class NoveliteViewModel(
+  val repository: NoveliteRepository = NoveliteRepository()
+) : ViewModel() {
+
+  // Current Navigation Screen
+  private val _currentScreen = MutableStateFlow(Screen.HOME)
+  val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
+
+  // Selected Story & Chapter for Detail & Reader
+  private val _selectedStoryId = MutableStateFlow<String?>(null)
+  val selectedStoryId: StateFlow<String?> = _selectedStoryId.asStateFlow()
+
+  private val _selectedChapterId = MutableStateFlow<String?>(null)
+  val selectedChapterId: StateFlow<String?> = _selectedChapterId.asStateFlow()
+
+  // Selected author profile (for public profile view)
+  private val _selectedAuthorId = MutableStateFlow<String?>(null)
+  val selectedAuthorId: StateFlow<String?> = _selectedAuthorId.asStateFlow()
+
+  // Celebration state
+  private val _celebration = MutableStateFlow(CelebrationState())
+  val celebration: StateFlow<CelebrationState> = _celebration.asStateFlow()
+
+  // Explore search & filters
+  val searchQuery = MutableStateFlow("")
+  val selectedGenreFilter = MutableStateFlow("All")
+  val isCompletedOnlyFilter = MutableStateFlow(false)
+  val sortByFilter = MutableStateFlow("Trending") // "Trending", "Most Popular", "Recently Updated", "Most Liked"
+
+  // Repository flows
+  val currentUser: StateFlow<UserProfile> = repository.currentUser
+  val isLoggedIn: StateFlow<Boolean> = repository.isLoggedIn
+  val isOnboarded: StateFlow<Boolean> = repository.isOnboarded
+  val stories: StateFlow<List<Story>> = repository.stories
+  val comments: StateFlow<List<Comment>> = repository.comments
+  val notifications: StateFlow<List<NoveliteNotification>> = repository.notifications
+  val authorStatuses: StateFlow<List<AuthorStatus>> = repository.authorStatuses
+  val achievements: StateFlow<List<Achievement>> = repository.achievements
+  val challenges = repository.challenges
+  val customCollections: StateFlow<List<CustomCollection>> = repository.customCollections
+  val todayMinutesRead: StateFlow<Int> = repository.todayMinutesRead
+  val todayWordsWritten: StateFlow<Int> = repository.todayWordsWritten
+  val readerConfig: StateFlow<ReaderConfig> = repository.readerConfig
+  val reports: StateFlow<List<ReportItem>> = repository.reports
+
+  // Writing Studio active editing story
+  private val _editingStoryId = MutableStateFlow<String?>(null)
+  val editingStoryId: StateFlow<String?> = _editingStoryId.asStateFlow()
+
+  private val _editingChapterId = MutableStateFlow<String?>(null)
+  val editingChapterId: StateFlow<String?> = _editingChapterId.asStateFlow()
+
+  init {
+    viewModelScope.launch {
+      repository.milestoneEvents.collect { event ->
+        when (event) {
+          is MilestoneEvent.GoalCompleted -> {
+            _celebration.value = CelebrationState(
+              isVisible = true,
+              streakDays = event.streakDays,
+              goalMinutes = event.minutes
+            )
+          }
+          is MilestoneEvent.StreakMilestone -> {
+            _celebration.value = CelebrationState(
+              isVisible = true,
+              streakDays = event.milestoneDays,
+              goalMinutes = currentUser.value.readingGoalMinutes,
+              badgeName = event.badgeName
+            )
+          }
+          is MilestoneEvent.ShieldUsed -> {
+            // Can show notification
+          }
+        }
+      }
+    }
+  }
+
+  fun navigateTo(screen: Screen) {
+    _currentScreen.value = screen
+  }
+
+  fun openStory(storyId: String) {
+    _selectedStoryId.value = storyId
+    _currentScreen.value = Screen.STORY_DETAIL
+  }
+
+  fun openReader(storyId: String, chapterId: String? = null) {
+    _selectedStoryId.value = storyId
+    val story = stories.value.find { it.id == storyId }
+    _selectedChapterId.value = chapterId ?: story?.chapters?.firstOrNull()?.id
+    _currentScreen.value = Screen.READER
+  }
+
+  fun openStreakDashboard() {
+    _currentScreen.value = Screen.STREAK_DASHBOARD
+  }
+
+  fun openAuthorProfile(authorId: String) {
+    _selectedAuthorId.value = authorId
+    _currentScreen.value = Screen.PROFILE
+  }
+
+  fun dismissCelebration() {
+    _celebration.value = _celebration.value.copy(isVisible = false)
+  }
+
+  // Reading Timer Sim
+  fun addReadingMinute(mins: Int = 1) {
+    repository.addReadingTime(mins)
+  }
+
+  fun useShield(): Boolean {
+    return repository.useStreakShield()
+  }
+
+  fun toggleLike(storyId: String) {
+    repository.toggleLikeStory(storyId)
+  }
+
+  fun toggleLikeChapter(storyId: String, chapterId: String) {
+    repository.toggleLikeChapter(storyId, chapterId)
+  }
+
+  fun toggleLibrary(storyId: String, tab: LibraryTab = LibraryTab.CURRENTLY_READING) {
+    repository.toggleLibraryStory(storyId, tab)
+  }
+
+  fun followAuthor(authorId: String) {
+    repository.toggleFollowAuthor(authorId)
+  }
+
+  fun postComment(storyId: String, chapterId: String, text: String, quote: String? = null) {
+    repository.addComment(storyId, chapterId, text, quote)
+  }
+
+  fun replyComment(commentId: String, text: String) {
+    repository.replyToComment(commentId, text)
+  }
+
+  fun likeComment(commentId: String) {
+    repository.toggleLikeComment(commentId)
+  }
+
+  fun deleteComment(commentId: String) {
+    repository.deleteComment(commentId)
+  }
+
+  // Writing Studio
+  fun startCreatingStory() {
+    _editingStoryId.value = null
+    _editingChapterId.value = null
+  }
+
+  fun selectStoryForEditing(storyId: String) {
+    _editingStoryId.value = storyId
+  }
+
+  fun selectChapterForEditing(chapterId: String) {
+    _editingChapterId.value = chapterId
+  }
+
+  fun createStory(
+    title: String,
+    desc: String,
+    genre: String,
+    tags: List<String>,
+    status: StoryStatus,
+    coverImageUrl: String? = null,
+    teaserVideoUrl: String? = null,
+    teaserVideoDurationSec: Int? = null
+  ): Story {
+    val story = repository.createStory(
+      title = title,
+      description = desc,
+      genre = genre,
+      tags = tags,
+      status = status,
+      coverImageUrl = coverImageUrl,
+      teaserVideoUrl = teaserVideoUrl,
+      teaserVideoDurationSec = teaserVideoDurationSec
+    )
+    _editingStoryId.value = story.id
+    return story
+  }
+
+  fun updateStoryMedia(
+    storyId: String,
+    coverImageUrl: String?,
+    teaserVideoUrl: String?,
+    teaserVideoDurationSec: Int? = null
+  ) {
+    repository.updateStoryMedia(storyId, coverImageUrl, teaserVideoUrl, teaserVideoDurationSec)
+  }
+
+  fun updateStoryDetails(
+    storyId: String,
+    title: String,
+    description: String,
+    genre: String,
+    tags: List<String>,
+    status: StoryStatus,
+    coverImageUrl: String?,
+    teaserVideoUrl: String?,
+    teaserVideoDurationSec: Int? = null
+  ) {
+    repository.updateStoryDetails(
+      storyId = storyId,
+      title = title,
+      description = description,
+      genre = genre,
+      tags = tags,
+      status = status,
+      coverImageUrl = coverImageUrl,
+      teaserVideoUrl = teaserVideoUrl,
+      teaserVideoDurationSec = teaserVideoDurationSec
+    )
+  }
+
+  fun addChapter(storyId: String, title: String, content: String, isDraft: Boolean): Chapter {
+    val ch = repository.addChapterToStory(storyId, title, content, isDraft)
+    _editingChapterId.value = ch.id
+    return ch
+  }
+
+  fun updateChapter(storyId: String, chapterId: String, title: String, content: String, isDraft: Boolean) {
+    repository.updateChapter(storyId, chapterId, title, content, isDraft)
+  }
+
+  fun updateStoryStatus(storyId: String, status: StoryStatus) {
+    repository.updateStoryStatus(storyId, status)
+  }
+
+  // Custom Collections
+  fun createCustomCollection(name: String, icon: String) {
+    repository.createCollection(name, icon)
+  }
+
+  fun addStoryToCustomCollection(colId: String, storyId: String) {
+    repository.addStoryToCollection(colId, storyId)
+  }
+
+  fun removeStoryFromCustomCollection(colId: String, storyId: String) {
+    repository.removeStoryFromCollection(colId, storyId)
+  }
+
+  // Reader Settings
+  fun updateReaderConfig(fontSize: Int? = null, fontFamily: String? = null, lineSpacing: Float? = null, themeMode: String? = null) {
+    repository.updateReaderConfig(fontSize, fontFamily, lineSpacing, themeMode)
+  }
+
+  // Auth & Onboarding
+  fun login(user: String, pass: String) {
+    repository.login(user, pass)
+    _currentScreen.value = Screen.HOME
+  }
+
+  fun signup(user: String, email: String, pass: String) {
+    repository.signup(user, email, pass)
+    _currentScreen.value = Screen.ONBOARDING
+  }
+
+  fun completeOnboarding(role: UserRole, genres: List<String>, goalMinutes: Int) {
+    repository.completeOnboarding(role, genres, goalMinutes)
+    _currentScreen.value = Screen.HOME
+  }
+
+  fun logout() {
+    repository.logout()
+    _currentScreen.value = Screen.AUTH
+  }
+
+  fun updateProfile(displayName: String, bio: String, isPublic: Boolean, goalMins: Int) {
+    repository.updateProfile(displayName, bio, isPublic, goalMins)
+  }
+
+  fun submitReport(targetType: String, title: String, reason: String, details: String) {
+    repository.submitReport(targetType, title, reason, details)
+  }
+
+  fun resolveReport(id: String, action: String) {
+    repository.resolveReport(id, action)
+  }
+
+  fun postAuthorStatus(
+    statusText: String,
+    storyId: String? = null,
+    storyTitle: String? = null,
+    mediaUrl: String? = null,
+    mediaType: String? = null
+  ) {
+    repository.postAuthorStatus(statusText, storyId, storyTitle, mediaUrl, mediaType)
+  }
+
+  fun likeAuthorStatus(statusId: String) {
+    repository.toggleLikeAuthorStatus(statusId)
+  }
+
+  fun deleteAuthorStatus(statusId: String) {
+    repository.deleteAuthorStatus(statusId)
+  }
+
+  fun markAllNotifsRead() {
+    repository.markAllNotificationsAsRead()
+  }
+
+  fun markNotificationRead(notifId: String) {
+    repository.markNotificationAsRead(notifId)
+  }
+
+  fun deleteNotification(notifId: String) {
+    repository.deleteNotification(notifId)
+  }
+}

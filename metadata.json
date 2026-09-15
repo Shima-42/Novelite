@@ -1,0 +1,6 @@
+{
+  "name": "Novelite",
+  "description": "A social storytelling platform combining immersive Wattpad-style reading and writing with Snapchat-style habit streaks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
