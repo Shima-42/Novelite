@@ -69,7 +69,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -96,6 +99,8 @@ import com.example.ui.components.StoryCoverView
 import com.example.ui.components.VersesIHaveWovenIcon
 import com.example.ui.components.formatReads
 import com.example.ui.theme.NoveliteBorder
+import com.example.ui.theme.NoveliteButtonBg
+import com.example.ui.theme.NoveliteButtonText
 import com.example.ui.theme.NoveliteCardBeige
 import com.example.ui.theme.NoveliteCaramel
 import com.example.ui.theme.NoveliteCreamBg
@@ -119,6 +124,7 @@ fun WritingStudioScreen(viewModel: NoveliteViewModel) {
   val stories by viewModel.stories.collectAsState()
   val todayWords by viewModel.todayWordsWritten.collectAsState()
 
+  val coroutineScope = rememberCoroutineScope()
   var studioView by remember { mutableStateOf(StudioView.DASHBOARD) }
   var selectedStoryId by remember { mutableStateOf<String?>(null) }
   var selectedChapterId by remember { mutableStateOf<String?>(null) }
@@ -163,13 +169,15 @@ fun WritingStudioScreen(viewModel: NoveliteViewModel) {
     contract = ActivityResultContracts.GetContent()
   ) { uri ->
     uri?.let {
-      val validation = MediaManager.validateImage(context, it)
-      if (validation.isValid) {
-        val saved = MediaManager.saveUriToAppStorage(context, it, isVideo = false)
-        newStoryCoverUrl = saved
-        newStoryErrorMessage = null
-      } else {
-        newStoryErrorMessage = validation.errorMessage
+      coroutineScope.launch {
+        val validation = MediaManager.validateImage(context, it)
+        if (validation.isValid) {
+          val saved = MediaManager.saveUriToAppStorage(context, it, isVideo = false)
+          newStoryCoverUrl = saved
+          newStoryErrorMessage = null
+        } else {
+          newStoryErrorMessage = validation.errorMessage
+        }
       }
     }
   }
@@ -178,14 +186,16 @@ fun WritingStudioScreen(viewModel: NoveliteViewModel) {
     contract = ActivityResultContracts.GetContent()
   ) { uri ->
     uri?.let {
-      val validation = MediaManager.validateVideo(context, it)
-      if (validation.isValid) {
-        val saved = MediaManager.saveUriToAppStorage(context, it, isVideo = true)
-        newStoryVideoUrl = saved
-        newStoryVideoDuration = validation.durationSeconds ?: 15
-        newStoryErrorMessage = null
-      } else {
-        newStoryErrorMessage = validation.errorMessage
+      coroutineScope.launch {
+        val validation = MediaManager.validateVideo(context, it)
+        if (validation.isValid) {
+          val saved = MediaManager.saveUriToAppStorage(context, it, isVideo = true)
+          newStoryVideoUrl = saved
+          newStoryVideoDuration = validation.durationSeconds ?: 15
+          newStoryErrorMessage = null
+        } else {
+          newStoryErrorMessage = validation.errorMessage
+        }
       }
     }
   }
@@ -195,15 +205,17 @@ fun WritingStudioScreen(viewModel: NoveliteViewModel) {
     contract = ActivityResultContracts.GetContent()
   ) { uri ->
     uri?.let {
-      val validation = MediaManager.validateImage(context, it)
-      if (validation.isValid && activeStory != null) {
-        val saved = MediaManager.saveUriToAppStorage(context, it, isVideo = false)
-        viewModel.updateStoryMedia(
-          storyId = activeStory.id,
-          coverImageUrl = saved,
-          teaserVideoUrl = activeStory.teaserVideoUrl,
-          teaserVideoDurationSec = activeStory.teaserVideoDurationSec
-        )
+      coroutineScope.launch {
+        val validation = MediaManager.validateImage(context, it)
+        if (validation.isValid && activeStory != null) {
+          val saved = MediaManager.saveUriToAppStorage(context, it, isVideo = false)
+          viewModel.updateStoryMedia(
+            storyId = activeStory.id,
+            coverImageUrl = saved,
+            teaserVideoUrl = activeStory.teaserVideoUrl,
+            teaserVideoDurationSec = activeStory.teaserVideoDurationSec
+          )
+        }
       }
     }
   }
@@ -212,15 +224,17 @@ fun WritingStudioScreen(viewModel: NoveliteViewModel) {
     contract = ActivityResultContracts.GetContent()
   ) { uri ->
     uri?.let {
-      val validation = MediaManager.validateVideo(context, it)
-      if (validation.isValid && activeStory != null) {
-        val saved = MediaManager.saveUriToAppStorage(context, it, isVideo = true)
-        viewModel.updateStoryMedia(
-          storyId = activeStory.id,
-          coverImageUrl = activeStory.coverImageUrl,
-          teaserVideoUrl = saved,
-          teaserVideoDurationSec = validation.durationSeconds ?: 15
-        )
+      coroutineScope.launch {
+        val validation = MediaManager.validateVideo(context, it)
+        if (validation.isValid && activeStory != null) {
+          val saved = MediaManager.saveUriToAppStorage(context, it, isVideo = true)
+          viewModel.updateStoryMedia(
+            storyId = activeStory.id,
+            coverImageUrl = activeStory.coverImageUrl,
+            teaserVideoUrl = saved,
+            teaserVideoDurationSec = validation.durationSeconds ?: 15
+          )
+        }
       }
     }
   }
@@ -230,11 +244,13 @@ fun WritingStudioScreen(viewModel: NoveliteViewModel) {
     contract = ActivityResultContracts.GetContent()
   ) { uri ->
     uri?.let {
-      val validation = MediaManager.validateImage(context, it)
-      if (validation.isValid) {
-        val saved = MediaManager.saveUriToAppStorage(context, it, isVideo = false)
-        statusMediaUrl = saved
-        statusMediaType = "IMAGE"
+      coroutineScope.launch {
+        val validation = MediaManager.validateImage(context, it)
+        if (validation.isValid) {
+          val saved = MediaManager.saveUriToAppStorage(context, it, isVideo = false)
+          statusMediaUrl = saved
+          statusMediaType = "IMAGE"
+        }
       }
     }
   }
@@ -243,11 +259,13 @@ fun WritingStudioScreen(viewModel: NoveliteViewModel) {
     contract = ActivityResultContracts.GetContent()
   ) { uri ->
     uri?.let {
-      val validation = MediaManager.validateVideo(context, it)
-      if (validation.isValid) {
-        val saved = MediaManager.saveUriToAppStorage(context, it, isVideo = true)
-        statusMediaUrl = saved
-        statusMediaType = "VIDEO"
+      coroutineScope.launch {
+        val validation = MediaManager.validateVideo(context, it)
+        if (validation.isValid) {
+          val saved = MediaManager.saveUriToAppStorage(context, it, isVideo = true)
+          statusMediaUrl = saved
+          statusMediaType = "VIDEO"
+        }
       }
     }
   }
@@ -297,17 +315,34 @@ fun WritingStudioScreen(viewModel: NoveliteViewModel) {
 
             Button(
               onClick = { showNewStoryDialog = true },
-              shape = RoundedCornerShape(12.dp),
+              shape = RoundedCornerShape(14.dp),
               colors = ButtonDefaults.buttonColors(
-                containerColor = NoveliteDarkBrown,
-                contentColor = NoveliteWhite
+                containerColor = NoveliteButtonBg,
+                contentColor = NoveliteButtonText
               ),
-              contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-              modifier = Modifier.testTag("new_story_button")
+              contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+              modifier = Modifier
+                .height(36.dp)
+                .testTag("new_story_button")
             ) {
-              Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = NoveliteWhite)
-              Spacer(modifier = Modifier.width(4.dp))
-              Text("New Story", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+              ) {
+                Icon(
+                  Icons.Default.Add,
+                  contentDescription = null,
+                  modifier = Modifier.size(16.dp),
+                  tint = NoveliteButtonText
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                  "New Story",
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 12.sp,
+                  color = NoveliteButtonText
+                )
+              }
             }
           }
         }

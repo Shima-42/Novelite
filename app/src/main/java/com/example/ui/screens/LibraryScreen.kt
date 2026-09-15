@@ -15,12 +15,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -90,6 +95,8 @@ data class NoveliteLibraryTabItem(
 fun LibraryScreen(viewModel: NoveliteViewModel) {
   val stories by viewModel.stories.collectAsState()
   val customCollections by viewModel.customCollections.collectAsState()
+  val librarySearchQuery by viewModel.librarySearchQuery.collectAsState()
+  val recentlyReadStories by viewModel.recentlyReadStories.collectAsState()
 
   var selectedTabIndex by remember { mutableStateOf(0) }
   var showCreateCollectionDialog by remember { mutableStateOf(false) }
@@ -137,12 +144,21 @@ fun LibraryScreen(viewModel: NoveliteViewModel) {
 
   val currentTab = libraryTabs[selectedTabIndex]
 
-  val libraryStories = when (selectedTabIndex) {
+  val rawTabStories = when (selectedTabIndex) {
     0 -> stories.filter { it.isInLibrary && it.readingProgressPercent in 0.01f..0.98f }
     1 -> stories.filter { it.isLiked }
     2 -> stories.filter { it.isInLibrary && it.readingProgressPercent == 0f }
     3 -> stories.filter { it.isInLibrary && it.readingProgressPercent >= 0.98f }
     else -> emptyList()
+  }
+
+  val libraryStories = if (librarySearchQuery.isBlank()) {
+    rawTabStories
+  } else {
+    rawTabStories.filter { story ->
+      story.title.contains(librarySearchQuery, ignoreCase = true) ||
+      story.authorName.contains(librarySearchQuery, ignoreCase = true)
+    }
   }
 
   Column(
@@ -199,7 +215,50 @@ fun LibraryScreen(viewModel: NoveliteViewModel) {
           }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Search Bar (Title search filter)
+        OutlinedTextField(
+          value = librarySearchQuery,
+          onValueChange = { viewModel.setLibrarySearchQuery(it) },
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+            .testTag("library_search_bar"),
+          placeholder = { Text("Search library by title...", fontSize = 13.sp, color = NoveliteTextMuted) },
+          leadingIcon = {
+            Icon(
+              imageVector = Icons.Default.Search,
+              contentDescription = "Search",
+              tint = NoveliteWarmBrown,
+              modifier = Modifier.size(18.dp)
+            )
+          },
+          trailingIcon = {
+            if (librarySearchQuery.isNotEmpty()) {
+              IconButton(onClick = { viewModel.setLibrarySearchQuery("") }) {
+                Icon(
+                  imageVector = Icons.Default.Clear,
+                  contentDescription = "Clear",
+                  tint = NoveliteWarmBrown,
+                  modifier = Modifier.size(16.dp)
+                )
+              }
+            }
+          },
+          singleLine = true,
+          shape = RoundedCornerShape(12.dp),
+          colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = NoveliteWhite,
+            unfocusedContainerColor = NoveliteWhite,
+            focusedBorderColor = NoveliteDarkBrown,
+            unfocusedBorderColor = NoveliteBorder,
+            focusedTextColor = NoveliteTextPrimary,
+            unfocusedTextColor = NoveliteTextPrimary
+          )
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
 
         // Scrollable Tabs with official icons and names
         ScrollableTabRow(
@@ -239,19 +298,74 @@ fun LibraryScreen(viewModel: NoveliteViewModel) {
       }
     }
 
+    // Recently Read Horizontal Section (when search query is blank)
+    if (recentlyReadStories.isNotEmpty() && librarySearchQuery.isBlank()) {
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(top = 10.dp, bottom = 4.dp)
+          .testTag("recently_read_section")
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+              imageVector = Icons.Default.AutoStories,
+              contentDescription = null,
+              tint = NoveliteWarmBrown,
+              modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+              text = "Recently Read",
+              fontFamily = FontFamily.Serif,
+              fontWeight = FontWeight.Bold,
+              fontSize = 15.sp,
+              color = NoveliteDarkBrown
+            )
+          }
+
+          Text(
+            text = "${recentlyReadStories.size} stories",
+            fontSize = 11.sp,
+            color = NoveliteTextMuted
+          )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyRow(
+          contentPadding = PaddingValues(horizontal = 20.dp),
+          horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+          items(recentlyReadStories) { story ->
+            RecentlyReadStoryCard(
+              story = story,
+              onClick = { viewModel.openReader(story.id, story.lastReadChapterId) }
+            )
+          }
+        }
+      }
+    }
+
     // Active Category Subtitle Card
     Surface(
       color = NoveliteCreamBg,
       modifier = Modifier
         .fillMaxWidth()
-        .padding(horizontal = 20.dp, vertical = 10.dp),
+        .padding(horizontal = 20.dp, vertical = 6.dp),
       shape = RoundedCornerShape(12.dp),
       border = androidx.compose.foundation.BorderStroke(1.dp, NoveliteBorder)
     ) {
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .padding(horizontal = 14.dp, vertical = 10.dp),
+          .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
       ) {
         currentTab.icon(true)
@@ -261,12 +375,12 @@ fun LibraryScreen(viewModel: NoveliteViewModel) {
             text = currentTab.officialName,
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
+            fontSize = 13.sp,
             color = NoveliteDarkBrown
           )
           Text(
             text = currentTab.subtitle,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             color = NoveliteTextMuted
           )
         }
@@ -616,6 +730,104 @@ fun LibraryStoryItemCard(
           )
         }
       }
+    }
+  }
+}
+
+@Composable
+fun RecentlyReadStoryCard(
+  story: Story,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier
+) {
+  Card(
+    modifier = modifier
+      .width(135.dp)
+      .clickable { onClick() }
+      .testTag("recently_read_card_${story.id}"),
+    shape = RoundedCornerShape(12.dp),
+    colors = CardDefaults.cardColors(containerColor = NoveliteCardBeige),
+    border = androidx.compose.foundation.BorderStroke(1.dp, NoveliteBorder),
+    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+  ) {
+    Column(modifier = Modifier.padding(8.dp)) {
+      // Book Cover
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(115.dp)
+          .clip(RoundedCornerShape(8.dp))
+          .background(Color(story.coverColorHex))
+      ) {
+        if (story.coverDrawableRes != null) {
+          AsyncImage(
+            model = story.coverDrawableRes,
+            contentDescription = "Cover",
+            modifier = Modifier.matchParentSize(),
+            contentScale = ContentScale.Crop
+          )
+        } else {
+          Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+          ) {
+            Text(
+              text = story.title.take(2).uppercase(),
+              fontFamily = FontFamily.Serif,
+              fontWeight = FontWeight.Bold,
+              fontSize = 20.sp,
+              color = NoveliteWhite
+            )
+          }
+        }
+
+        // Mini Badge
+        Surface(
+          shape = RoundedCornerShape(topStart = 0.dp, bottomEnd = 8.dp),
+          color = NoveliteDarkBrown,
+          modifier = Modifier.align(Alignment.TopStart)
+        ) {
+          Text(
+            text = "${(story.readingProgressPercent * 100).toInt()}%",
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            color = NoveliteWhite,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+          )
+        }
+      }
+
+      Spacer(modifier = Modifier.height(6.dp))
+
+      Text(
+        text = story.title,
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 12.sp,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        color = NoveliteTextPrimary
+      )
+
+      Text(
+        text = story.authorName,
+        fontSize = 10.sp,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        color = NoveliteTextMuted
+      )
+
+      Spacer(modifier = Modifier.height(6.dp))
+
+      LinearProgressIndicator(
+        progress = { story.readingProgressPercent },
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(3.dp)
+          .clip(RoundedCornerShape(2.dp)),
+        color = NoveliteCaramel,
+        trackColor = NoveliteCreamBg
+      )
     }
   }
 }

@@ -55,29 +55,14 @@ fun ReadingRoomIcon(
   modifier: Modifier = Modifier,
   size: Dp = 26.dp,
   isSelected: Boolean = true,
-  enableAnimation: Boolean = true,
+  enableAnimation: Boolean = false,
   tint: Color? = null
 ) {
   val primary = tint ?: if (isSelected) NovelitePrimaryText else NoveliteSecondaryText
   val secondary = tint ?: if (isSelected) NoveliteSecondaryAccent else NoveliteSecondaryText
   val accent = tint ?: if (isSelected) NovelitePrimaryAccent else NoveliteSecondaryText
 
-  val infiniteTransition = rememberInfiniteTransition(label = "readingRoomAnim")
-  
-  // Gentle floating of the carpet
-  val floatOffset by if (enableAnimation) {
-    infiniteTransition.animateFloat(
-      initialValue = -1.5f,
-      targetValue = 1.5f,
-      animationSpec = infiniteRepeatable(
-        animation = tween(2200, easing = FastOutSlowInEasing),
-        repeatMode = RepeatMode.Reverse
-      ),
-      label = "carpetFloat"
-    )
-  } else {
-    androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
-  }
+  val floatOffset = 0f
 
   Canvas(
     modifier = modifier

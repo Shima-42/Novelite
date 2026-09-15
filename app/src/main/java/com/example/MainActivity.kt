@@ -51,6 +51,7 @@ import com.example.ui.components.VersesIHaveWovenIcon
 import com.example.ui.components.WhereIWanderNowIcon
 import com.example.ui.screens.AdminScreen
 import com.example.ui.screens.AuthScreen
+import com.example.ui.screens.DiagnosticScreen
 import com.example.ui.screens.ExploreScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
@@ -60,6 +61,7 @@ import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.ReaderScreen
 import com.example.ui.screens.StoryDetailScreen
 import com.example.ui.screens.StreakDashboardScreen
+import com.example.ui.screens.WriterDraftEditorScreen
 import com.example.ui.screens.WritingStudioScreen
 import com.example.ui.theme.NoveliteBorder
 import com.example.ui.theme.NoveliteCardBeige
@@ -105,6 +107,7 @@ fun NoveliteApp(viewModel: NoveliteViewModel) {
         }
       }
       Screen.STORY_DETAIL -> viewModel.navigateTo(Screen.HOME)
+      Screen.WRITER_DRAFT -> viewModel.navigateTo(Screen.WRITE)
       Screen.STREAK_DASHBOARD -> viewModel.navigateTo(Screen.HOME)
       Screen.NOTIFICATIONS -> viewModel.navigateTo(Screen.HOME)
       Screen.ADMIN -> viewModel.navigateTo(Screen.PROFILE)
@@ -221,12 +224,19 @@ fun NoveliteApp(viewModel: NoveliteViewModel) {
             Screen.EXPLORE -> ExploreScreen(viewModel = viewModel)
             Screen.LIBRARY -> LibraryScreen(viewModel = viewModel)
             Screen.WRITE -> WritingStudioScreen(viewModel = viewModel)
+            Screen.WRITER_DRAFT -> WriterDraftEditorScreen(
+              viewModel = viewModel,
+              storyId = viewModel.editingStoryId.value,
+              chapterId = viewModel.editingChapterId.value,
+              onBackClick = { viewModel.navigateTo(Screen.WRITE) }
+            )
             Screen.PROFILE -> ProfileScreen(viewModel = viewModel)
             Screen.STORY_DETAIL -> StoryDetailScreen(viewModel = viewModel)
             Screen.READER -> ReaderScreen(viewModel = viewModel)
             Screen.STREAK_DASHBOARD -> StreakDashboardScreen(viewModel = viewModel)
             Screen.NOTIFICATIONS -> NotificationsScreen(viewModel = viewModel)
             Screen.ADMIN -> AdminScreen(viewModel = viewModel)
+            Screen.DIAGNOSTIC -> DiagnosticScreen(viewModel = viewModel)
           }
         }
 

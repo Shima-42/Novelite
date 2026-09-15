@@ -8,11 +8,13 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -63,10 +65,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.DayStatus
+import com.example.data.MilestoneEvent
 import com.example.ui.NoveliteViewModel
 import com.example.ui.Screen
 import com.example.ui.components.HabitStreak
 import com.example.ui.components.StreakCalendar
+import com.example.ui.components.StreakMilestoneFlareOverlay
 import com.example.ui.theme.NoveliteBorder
 import com.example.ui.theme.NoveliteButtonBg
 import com.example.ui.theme.NoveliteButtonText
@@ -84,10 +88,21 @@ import com.example.ui.theme.ShieldEmerald
 @Composable
 fun StreakDashboardScreen(viewModel: NoveliteViewModel) {
   val currentUser by viewModel.currentUser.collectAsState()
+  val todayMinutes by viewModel.todayMinutesRead.collectAsState()
   val challenges by viewModel.challenges.collectAsState()
   val calendarDays = remember { viewModel.repository.getStreakCalendarDays() }
 
   var shieldMessage by remember { mutableStateOf<String?>(null) }
+  var showFlareAnimation by remember { mutableStateOf(false) }
+
+  // Event-based trigger for milestone flare celebration
+  androidx.compose.runtime.LaunchedEffect(Unit) {
+    viewModel.repository.milestoneEvents.collect { event ->
+      if (event is MilestoneEvent.GoalCompleted || event is MilestoneEvent.StreakMilestone) {
+        showFlareAnimation = true
+      }
+    }
+  }
 
   val infiniteTransition = rememberInfiniteTransition(label = "heroFlame")
   val pulseScale by infiniteTransition.animateFloat(
@@ -109,12 +124,16 @@ fun StreakDashboardScreen(viewModel: NoveliteViewModel) {
     else -> "Story Spark ✨"
   }
 
-  Column(
+  Box(
     modifier = Modifier
       .fillMaxSize()
       .background(NoveliteCreamBg)
-      .testTag("streak_dashboard_screen")
   ) {
+    Column(
+      modifier = Modifier
+        .fillMaxSize()
+        .testTag("streak_dashboard_screen")
+    ) {
     // Top Bar
     Row(
       modifier = Modifier
@@ -164,7 +183,8 @@ fun StreakDashboardScreen(viewModel: NoveliteViewModel) {
             Brush.radialGradient(
               colors = listOf(NoveliteCaramel, NoveliteWarmBrown, NoveliteDarkBrown.copy(alpha = 0.2f), Color.Transparent)
             )
-          ),
+          )
+          .clickable { showFlareAnimation = true },
         contentAlignment = Alignment.Center
       ) {
         Icon(
@@ -505,8 +525,15 @@ fun StreakDashboardScreen(viewModel: NoveliteViewModel) {
         }
       }
 
-      Spacer(modifier = Modifier.height(30.dp))
+        Spacer(modifier = Modifier.height(30.dp))
+      }
     }
+
+    // Flare / Confetti Animation Overlay
+    StreakMilestoneFlareOverlay(
+      isVisible = showFlareAnimation,
+      onDismiss = { showFlareAnimation = false }
+    )
   }
 }
 

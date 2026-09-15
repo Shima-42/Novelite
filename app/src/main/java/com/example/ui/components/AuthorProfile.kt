@@ -71,6 +71,8 @@ import com.example.data.StoryStatus
 import com.example.data.UserProfile
 import com.example.ui.NoveliteViewModel
 import com.example.ui.theme.NoveliteBorder
+import com.example.ui.theme.NoveliteButtonBg
+import com.example.ui.theme.NoveliteButtonText
 import com.example.ui.theme.NoveliteCardBeige
 import com.example.ui.theme.NoveliteCaramel
 import com.example.ui.theme.NoveliteCreamBg
@@ -408,15 +410,14 @@ fun AuthorProfile(
           onClick = onFollowClick,
           modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(44.dp)
             .testTag("author_follow_button"),
-          shape = RoundedCornerShape(12.dp),
+          shape = RoundedCornerShape(14.dp),
           colors = ButtonDefaults.buttonColors(
-            containerColor = if (isFollowing) NoveliteSoftAccentBg else NoveliteDarkBrown,
-            contentColor = if (isFollowing) NoveliteDarkBrown else NoveliteWhite
+            containerColor = NoveliteButtonBg,
+            contentColor = NoveliteButtonText
           ),
-          border = if (isFollowing) androidx.compose.foundation.BorderStroke(1.dp, NoveliteWarmBrown) else null,
-          elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
+          contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
         ) {
           Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -425,14 +426,15 @@ fun AuthorProfile(
             Icon(
               imageVector = if (isFollowing) Icons.Default.Check else Icons.Default.Add,
               contentDescription = null,
-              tint = if (isFollowing) NoveliteDarkBrown else NoveliteWhite,
+              tint = NoveliteButtonText,
               modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
               text = if (isFollowing) "Following" else "Follow Author",
               fontWeight = FontWeight.Bold,
-              fontSize = 14.sp
+              fontSize = 13.sp,
+              color = NoveliteButtonText
             )
           }
         }

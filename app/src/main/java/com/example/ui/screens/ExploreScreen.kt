@@ -82,30 +82,32 @@ fun ExploreScreen(viewModel: NoveliteViewModel) {
     "Mystery", "Thriller", "Science Fiction", "Young Adult", "Poetry", "Comedy"
   )
 
-  // Filtered and Sorted list
-  val filteredStories = stories.filter { story ->
-    val matchesQuery = query.isBlank() ||
-      story.title.contains(query, ignoreCase = true) ||
-      story.authorName.contains(query, ignoreCase = true) ||
-      story.authorUsername.contains(query, ignoreCase = true) ||
-      story.genre.contains(query, ignoreCase = true) ||
-      story.tags.any { it.contains(query, ignoreCase = true) }
+  // Filtered and Sorted list with memoized computation
+  val filteredStories = remember(stories, query, selectedGenre, isCompletedOnly, sortBy) {
+    stories.filter { story ->
+      val matchesQuery = query.isBlank() ||
+        story.title.contains(query, ignoreCase = true) ||
+        story.authorName.contains(query, ignoreCase = true) ||
+        story.authorUsername.contains(query, ignoreCase = true) ||
+        story.genre.contains(query, ignoreCase = true) ||
+        story.tags.any { it.contains(query, ignoreCase = true) }
 
-    val matchesGenre = when (selectedGenre) {
-      "All" -> true
-      "Trending" -> story.readsCount > 20000
-      else -> story.genre.equals(selectedGenre, ignoreCase = true)
-    }
+      val matchesGenre = when (selectedGenre) {
+        "All" -> true
+        "Trending" -> story.readsCount > 20000
+        else -> story.genre.equals(selectedGenre, ignoreCase = true)
+      }
 
-    val matchesStatus = if (isCompletedOnly) story.status == StoryStatus.COMPLETED else true
+      val matchesStatus = if (isCompletedOnly) story.status == StoryStatus.COMPLETED else true
 
-    matchesQuery && matchesGenre && matchesStatus
-  }.let { list ->
-    when (sortBy) {
-      "Most Popular" -> list.sortedByDescending { it.readsCount }
-      "Most Liked" -> list.sortedByDescending { it.likesCount }
-      "Recently Updated" -> list.sortedByDescending { it.chaptersCount }
-      else -> list.sortedByDescending { it.readsCount + it.likesCount }
+      matchesQuery && matchesGenre && matchesStatus
+    }.let { list ->
+      when (sortBy) {
+        "Most Popular" -> list.sortedByDescending { it.readsCount }
+        "Most Liked" -> list.sortedByDescending { it.likesCount }
+        "Recently Updated" -> list.sortedByDescending { it.chaptersCount }
+        else -> list.sortedByDescending { it.readsCount + it.likesCount }
+      }
     }
   }
 

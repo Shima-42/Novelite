@@ -19,10 +19,14 @@ import com.example.data.StoryStatus
 import com.example.data.StreakHistoryDay
 import com.example.data.UserProfile
 import com.example.data.UserRole
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -37,9 +41,11 @@ enum class Screen {
   PROFILE,
   STORY_DETAIL,
   READER,
+  WRITER_DRAFT,
   STREAK_DASHBOARD,
   NOTIFICATIONS,
-  ADMIN
+  ADMIN,
+  DIAGNOSTIC
 }
 
 data class CelebrationState(
@@ -94,6 +100,49 @@ class NoveliteViewModel(
   val readerConfig: StateFlow<ReaderConfig> = repository.readerConfig
   val reports: StateFlow<List<ReportItem>> = repository.reports
 
+  // Library Search Query & Flow
+  private val _librarySearchQuery = MutableStateFlow("")
+  val librarySearchQuery: StateFlow<String> = _librarySearchQuery.asStateFlow()
+
+  fun setLibrarySearchQuery(query: String) {
+    _librarySearchQuery.value = query
+  }
+
+  // Recently Read stories (stories with progress > 0 ordered by last update)
+  val recentlyReadStories: StateFlow<List<Story>> = stories
+    .map { list ->
+      list.filter { it.readingProgressPercent > 0f }
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(
+      scope = viewModelScope,
+      started = SharingStarted.WhileSubscribed(5000),
+      initialValue = emptyList()
+    )
+
+  // Filtered stories in library by title
+  val filteredLibraryStories: StateFlow<List<Story>> = combine(
+    stories,
+    _librarySearchQuery
+  ) { storyList, query ->
+    val inLibrary = storyList.filter { it.isInLibrary }
+    if (query.isBlank()) {
+      inLibrary
+    } else {
+      inLibrary.filter {
+        it.title.contains(query, ignoreCase = true) ||
+        it.authorName.contains(query, ignoreCase = true) ||
+        it.genre.contains(query, ignoreCase = true)
+      }
+    }
+  }
+  .flowOn(Dispatchers.Default)
+  .stateIn(
+    scope = viewModelScope,
+    started = SharingStarted.WhileSubscribed(5000),
+    initialValue = emptyList()
+  )
+
   // Writing Studio active editing story
   private val _editingStoryId = MutableStateFlow<String?>(null)
   val editingStoryId: StateFlow<String?> = _editingStoryId.asStateFlow()
@@ -142,6 +191,12 @@ class NoveliteViewModel(
     val story = stories.value.find { it.id == storyId }
     _selectedChapterId.value = chapterId ?: story?.chapters?.firstOrNull()?.id
     _currentScreen.value = Screen.READER
+  }
+
+  fun openWriterDraft(storyId: String? = null, chapterId: String? = null) {
+    _editingStoryId.value = storyId
+    _editingChapterId.value = chapterId
+    _currentScreen.value = Screen.WRITER_DRAFT
   }
 
   fun openStreakDashboard() {

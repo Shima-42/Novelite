@@ -78,6 +78,8 @@ import com.example.ui.components.NoveliteVideoPlayer
 import com.example.ui.components.TheStoryUnfoldsIcon
 import com.example.ui.components.formatReads
 import com.example.ui.theme.NoveliteBorder
+import com.example.ui.theme.NoveliteButtonBg
+import com.example.ui.theme.NoveliteButtonText
 import com.example.ui.theme.NoveliteCardBeige
 import com.example.ui.theme.NoveliteCaramel
 import com.example.ui.theme.NoveliteCreamBg
@@ -401,49 +403,66 @@ fun StoryDetailScreen(viewModel: NoveliteViewModel) {
             },
             modifier = Modifier
               .weight(1.8f)
-              .height(48.dp)
+              .height(44.dp)
               .testTag("start_reading_button"),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(
-              containerColor = NoveliteSecondaryAccent,
-              contentColor = NoveliteWhite
-            )
+              containerColor = NoveliteButtonBg,
+              contentColor = NoveliteButtonText
+            ),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
           ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = NoveliteWhite)
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-              text = if (story.readingProgressPercent > 0f) "Continue (${(story.readingProgressPercent * 100).toInt()}%)" else "Start Reading",
-              fontWeight = FontWeight.Bold,
-              fontSize = 13.sp,
-              color = NoveliteWhite
-            )
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.Center
+            ) {
+              Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = null,
+                tint = NoveliteButtonText,
+                modifier = Modifier.size(18.dp)
+              )
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(
+                text = if (story.readingProgressPercent > 0f) "Continue (${(story.readingProgressPercent * 100).toInt()}%)" else "Start Reading",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = NoveliteButtonText
+              )
+            }
           }
 
-          OutlinedButton(
+          Button(
             onClick = { viewModel.toggleLibrary(story.id) },
             modifier = Modifier
               .weight(1.2f)
-              .height(48.dp)
+              .height(44.dp)
               .testTag("library_toggle_button"),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.outlinedButtonColors(
-              containerColor = if (story.isInLibrary) NoveliteSoftAccentBg else NoveliteCardBeige,
-              contentColor = NoveliteDarkBrown
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+              containerColor = NoveliteButtonBg,
+              contentColor = NoveliteButtonText
             ),
-            border = androidx.compose.foundation.BorderStroke(1.dp, if (story.isInLibrary) NoveliteSecondaryAccent else NoveliteBorder)
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
           ) {
-            Icon(
-              imageVector = if (story.isInLibrary) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-              contentDescription = null,
-              tint = if (story.isInLibrary) NoveliteSecondaryAccent else NoveliteDarkBrown
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-              text = if (story.isInLibrary) "In Library" else "+ Library",
-              fontSize = 11.sp,
-              fontWeight = FontWeight.Bold,
-              color = NoveliteDarkBrown
-            )
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.Center
+            ) {
+              Icon(
+                imageVector = if (story.isInLibrary) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                contentDescription = null,
+                tint = NoveliteButtonText,
+                modifier = Modifier.size(16.dp)
+              )
+              Spacer(modifier = Modifier.width(4.dp))
+              Text(
+                text = if (story.isInLibrary) "In Library" else "+ Library",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = NoveliteButtonText
+              )
+            }
           }
 
           IconButton(
@@ -738,10 +757,13 @@ fun StoryDetailScreen(viewModel: NoveliteViewModel) {
             viewModel.submitReport("Story", story.title, reportReason, reportDetails)
             showReportDialog = false
           },
-          colors = ButtonDefaults.buttonColors(containerColor = NoveliteDarkBrown),
-          shape = RoundedCornerShape(10.dp)
+          colors = ButtonDefaults.buttonColors(
+            containerColor = NoveliteButtonBg,
+            contentColor = NoveliteButtonText
+          ),
+          shape = RoundedCornerShape(14.dp)
         ) {
-          Text("Submit Report", color = NoveliteWhite, fontWeight = FontWeight.Bold)
+          Text("Submit Report", color = NoveliteButtonText, fontWeight = FontWeight.Bold)
         }
       },
       dismissButton = {

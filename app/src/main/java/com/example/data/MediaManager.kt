@@ -4,6 +4,8 @@ import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.OpenableColumns
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -129,7 +131,7 @@ object MediaManager {
     )
   )
 
-  fun validateImage(context: Context, uri: Uri): MediaValidationResult {
+  suspend fun validateImage(context: Context, uri: Uri): MediaValidationResult = withContext(Dispatchers.IO) {
     try {
       val contentResolver = context.contentResolver
       val mimeType = contentResolver.getType(uri) ?: getMimeTypeFromExtension(uri.toString())
@@ -138,7 +140,7 @@ object MediaManager {
       }
 
       if (!isSupported) {
-        return MediaValidationResult(
+        return@withContext MediaValidationResult(
           isValid = false,
           errorMessage = "Unsupported image format ($mimeType). Please use JPG, PNG, WEBP, or GIF."
         )
@@ -158,7 +160,7 @@ object MediaManager {
 
       if (fileSize > MAX_IMAGE_SIZE_BYTES) {
         val sizeMb = String.format("%.1f", fileSize / (1024.0 * 1024.0))
-        return MediaValidationResult(
+        return@withContext MediaValidationResult(
           isValid = false,
           errorMessage = "Image is too large (${sizeMb}MB). Maximum allowed size is 10MB.",
           fileName = fileName,
@@ -166,18 +168,18 @@ object MediaManager {
         )
       }
 
-      return MediaValidationResult(
+      MediaValidationResult(
         isValid = true,
         fileName = fileName ?: "cover_${UUID.randomUUID().toString().take(6)}.jpg",
         fileSizeFormatted = if (fileSize > 0) "${String.format("%.1f", fileSize / 1024.0)} KB" else "Valid",
         mimeType = mimeType
       )
     } catch (e: Exception) {
-      return MediaValidationResult(isValid = true, fileName = "selected_cover.jpg")
+      MediaValidationResult(isValid = true, fileName = "selected_cover.jpg")
     }
   }
 
-  fun validateVideo(context: Context, uri: Uri): MediaValidationResult {
+  suspend fun validateVideo(context: Context, uri: Uri): MediaValidationResult = withContext(Dispatchers.IO) {
     try {
       val contentResolver = context.contentResolver
       val mimeType = contentResolver.getType(uri) ?: getMimeTypeFromExtension(uri.toString())
@@ -186,7 +188,7 @@ object MediaManager {
       }
 
       if (!isSupported) {
-        return MediaValidationResult(
+        return@withContext MediaValidationResult(
           isValid = false,
           errorMessage = "Unsupported video format ($mimeType). Please use MP4, WEBM, MKV, or 3GP."
         )
@@ -206,7 +208,7 @@ object MediaManager {
 
       if (fileSize > MAX_VIDEO_SIZE_BYTES) {
         val sizeMb = String.format("%.1f", fileSize / (1024.0 * 1024.0))
-        return MediaValidationResult(
+        return@withContext MediaValidationResult(
           isValid = false,
           errorMessage = "Video is too large (${sizeMb}MB). Maximum teaser size is 50MB.",
           fileName = fileName,
@@ -225,7 +227,7 @@ object MediaManager {
         retriever.release()
 
         if (durationSec > MAX_VIDEO_DURATION_SECONDS) {
-          return MediaValidationResult(
+          return@withContext MediaValidationResult(
             isValid = false,
             errorMessage = "Video duration is ${durationSec}s. Short teasers must be 60 seconds or less.",
             fileName = fileName,
@@ -236,7 +238,7 @@ object MediaManager {
         // Duration retrieval may not be available on all content providers
       }
 
-      return MediaValidationResult(
+      MediaValidationResult(
         isValid = true,
         fileName = fileName ?: "teaser_${UUID.randomUUID().toString().take(6)}.mp4",
         fileSizeFormatted = if (fileSize > 0) "${String.format("%.1f", fileSize / (1024.0 * 1024.0))} MB" else "Valid",
@@ -244,11 +246,11 @@ object MediaManager {
         mimeType = mimeType
       )
     } catch (e: Exception) {
-      return MediaValidationResult(isValid = true, fileName = "selected_video.mp4", durationSeconds = 15)
+      MediaValidationResult(isValid = true, fileName = "selected_video.mp4", durationSeconds = 15)
     }
   }
 
-  fun saveUriToAppStorage(context: Context, uri: Uri, isVideo: Boolean): String {
+  suspend fun saveUriToAppStorage(context: Context, uri: Uri, isVideo: Boolean): String = withContext(Dispatchers.IO) {
     try {
       val mediaDir = File(context.filesDir, "novelite_media")
       if (!mediaDir.exists()) mediaDir.mkdirs()
@@ -261,9 +263,9 @@ object MediaManager {
           inputStream.copyTo(outputStream)
         }
       }
-      return targetFile.absolutePath
+      targetFile.absolutePath
     } catch (e: Exception) {
-      return uri.toString()
+      uri.toString()
     }
   }
 

@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -43,13 +44,13 @@ fun NoveliteVideoPlayer(
   showControls: Boolean = true,
   onRemove: (() -> Unit)? = null
 ) {
-  val context = LocalContext.current
+  var isStarted by remember { mutableStateOf(autoPlay) }
   var isPlaying by remember { mutableStateOf(autoPlay) }
   var isMuted by remember { mutableStateOf(false) }
-  var currentPositionMs by remember { mutableStateOf(0) }
-  var durationMs by remember { mutableStateOf(0) }
+  var currentPositionMs by remember { mutableIntStateOf(0) }
+  var durationMs by remember { mutableIntStateOf(0) }
   var isControlsVisible by remember { mutableStateOf(true) }
-  var isBuffering by remember { mutableStateOf(true) }
+  var isBuffering by remember { mutableStateOf(false) }
   var hasError by remember { mutableStateOf(false) }
   var isCompleted by remember { mutableStateOf(false) }
 
@@ -64,18 +65,37 @@ fun NoveliteVideoPlayer(
     }
   }
 
-  // Position poll
-  LaunchedEffect(videoViewRef, isPlaying) {
-    while (isActive) {
-      videoViewRef?.let { vv ->
-        if (vv.isPlaying) {
-          currentPositionMs = vv.currentPosition
-          if (durationMs == 0 && vv.duration > 0) {
-            durationMs = vv.duration
+  // Safe position polling only while playing
+  LaunchedEffect(isPlaying, isStarted) {
+    while (isActive && isPlaying && isStarted) {
+      try {
+        videoViewRef?.let { vv ->
+          if (vv.isPlaying) {
+            currentPositionMs = vv.currentPosition
+            if (durationMs == 0 && vv.duration > 0) {
+              durationMs = vv.duration
+            }
           }
         }
-      }
-      delay(300)
+      } catch (_: Exception) {}
+      delay(500)
+    }
+  }
+
+  DisposableEffect(videoUrl) {
+    onDispose {
+      try {
+        videoViewRef?.let { vv ->
+          vv.setOnPreparedListener(null)
+          vv.setOnErrorListener(null)
+          vv.setOnCompletionListener(null)
+          if (vv.isPlaying) {
+            vv.stopPlayback()
+          }
+        }
+      } catch (_: Exception) {}
+      videoViewRef = null
+      mediaPlayerRef = null
     }
   }
 
@@ -88,75 +108,156 @@ fun NoveliteVideoPlayer(
         interactionSource = remember { MutableInteractionSource() },
         indication = null
       ) {
-        isControlsVisible = !isControlsVisible
+        if (isStarted) {
+          isControlsVisible = !isControlsVisible
+        } else {
+          isStarted = true
+          isBuffering = true
+        }
       }
       .testTag("novelite_video_player")
   ) {
-    // Video View
-    AndroidView(
-      factory = { ctx ->
-        FrameLayout(ctx).apply {
-          layoutParams = ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-          )
-          val videoView = VideoView(ctx).apply {
-            layoutParams = FrameLayout.LayoutParams(
-              FrameLayout.LayoutParams.MATCH_PARENT,
-              FrameLayout.LayoutParams.MATCH_PARENT
+    if (isStarted) {
+      // Lazy Video View
+      AndroidView(
+        factory = { ctx ->
+          FrameLayout(ctx).apply {
+            layoutParams = ViewGroup.LayoutParams(
+              ViewGroup.LayoutParams.MATCH_PARENT,
+              ViewGroup.LayoutParams.MATCH_PARENT
             )
+            val videoView = VideoView(ctx).apply {
+              layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+              )
 
-            try {
-              if (videoUrl.startsWith("http://") || videoUrl.startsWith("https://") || videoUrl.startsWith("content://") || videoUrl.startsWith("file://")) {
-                setVideoURI(Uri.parse(videoUrl))
-              } else {
-                setVideoPath(videoUrl)
+              setOnErrorListener { _, what, extra ->
+                hasError = true
+                isBuffering = false
+                isPlaying = false
+                mediaPlayerRef = null
+                // Note: Never call stopPlayback() or stop() here since MediaPlayer is already in the ERROR state.
+                true
               }
-            } catch (e: Exception) {
-              hasError = true
-              isBuffering = false
-            }
 
-            setOnPreparedListener { mp ->
-              mediaPlayerRef = mp
-              durationMs = mp.duration
-              isBuffering = false
-              hasError = false
-              mp.isLooping = false
-              if (autoPlay) {
-                mp.start()
-                isPlaying = true
+              setOnPreparedListener { mp ->
+                try {
+                  mediaPlayerRef = mp
+                  durationMs = mp.duration
+                  isBuffering = false
+                  hasError = false
+                  mp.isLooping = false
+                  val vol = if (isMuted) 0f else 1f
+                  mp.setVolume(vol, vol)
+                  if (isPlaying) {
+                    mp.start()
+                  }
+                } catch (_: Exception) {
+                  hasError = true
+                  isBuffering = false
+                }
+              }
+
+              setOnCompletionListener {
+                isPlaying = false
+                isCompleted = true
+                isControlsVisible = true
+              }
+
+              try {
+                if (videoUrl.isNotBlank()) {
+                  val uri = Uri.parse(videoUrl)
+                  if (uri.scheme.isNullOrEmpty()) {
+                    setVideoPath(videoUrl)
+                  } else {
+                    setVideoURI(uri)
+                  }
+                } else {
+                  hasError = true
+                  isBuffering = false
+                }
+              } catch (_: Exception) {
+                hasError = true
+                isBuffering = false
               }
             }
-
-            setOnCompletionListener {
-              isPlaying = false
-              isCompleted = true
-              isControlsVisible = true
-            }
-
-            setOnErrorListener { _, _, _ ->
-              hasError = true
-              isBuffering = false
-              true
-            }
+            videoViewRef = videoView
+            addView(videoView)
           }
-          videoViewRef = videoView
-          addView(videoView)
-        }
-      },
-      update = { _ ->
-        // No-op or updates
-      },
-      modifier = Modifier.fillMaxSize()
-    )
-
-    // Buffering indicator
-    if (isBuffering && !hasError) {
+        },
+        onRelease = { frameLayout ->
+          try {
+            val vv = (0 until frameLayout.childCount).mapNotNull { frameLayout.getChildAt(it) as? VideoView }.firstOrNull()
+            vv?.setOnPreparedListener(null)
+            vv?.setOnErrorListener(null)
+            vv?.setOnCompletionListener(null)
+            if (vv?.isPlaying == true) {
+              vv.stopPlayback()
+            }
+          } catch (_: Exception) {}
+        },
+        modifier = Modifier.fillMaxSize()
+      )
+    } else {
+      // High Performance Static Poster Banner (No network stalling on UI thread)
       Box(
         modifier = Modifier
           .fillMaxSize()
-          .background(Color.Black.copy(alpha = 0.4f)),
+          .background(
+            Brush.verticalGradient(
+              colors = listOf(
+                NoveliteDarkBrown,
+                Color(0xFF2C1810)
+              )
+            )
+          ),
+        contentAlignment = Alignment.Center
+      ) {
+        Column(
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.Center,
+          modifier = Modifier.padding(16.dp)
+        ) {
+          Surface(
+            shape = CircleShape,
+            color = NoveliteCaramel,
+            shadowElevation = 6.dp,
+            modifier = Modifier.size(54.dp)
+          ) {
+            Box(contentAlignment = Alignment.Center) {
+              Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = "Play Teaser",
+                tint = NoveliteDarkBrown,
+                modifier = Modifier.size(32.dp)
+              )
+            }
+          }
+          Spacer(modifier = Modifier.height(10.dp))
+          Text(
+            text = title ?: "Watch Story Trailer",
+            fontFamily = FontFamily.Serif,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = NoveliteWhite
+          )
+          Spacer(modifier = Modifier.height(2.dp))
+          Text(
+            text = "Tap to load and play teaser",
+            fontSize = 11.sp,
+            color = NoveliteCardBeige
+          )
+        }
+      }
+    }
+
+    // Buffering indicator
+    if (isBuffering && !hasError && isStarted) {
+      Box(
+        modifier = Modifier
+          .fillMaxSize()
+          .background(Color.Black.copy(alpha = 0.5f)),
         contentAlignment = Alignment.Center
       ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -177,11 +278,11 @@ fun NoveliteVideoPlayer(
     }
 
     // Error State
-    if (hasError) {
+    if (hasError && isStarted) {
       Box(
         modifier = Modifier
           .fillMaxSize()
-          .background(NoveliteDarkBrown.copy(alpha = 0.9f))
+          .background(NoveliteDarkBrown.copy(alpha = 0.95f))
           .padding(16.dp),
         contentAlignment = Alignment.Center
       ) {
@@ -190,7 +291,7 @@ fun NoveliteVideoPlayer(
             imageVector = Icons.Default.VideocamOff,
             contentDescription = null,
             tint = NoveliteWarmBrown,
-            modifier = Modifier.size(40.dp)
+            modifier = Modifier.size(36.dp)
           )
           Spacer(modifier = Modifier.height(8.dp))
           Text(
@@ -198,16 +299,9 @@ fun NoveliteVideoPlayer(
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.Bold,
             color = NoveliteWhite,
-            fontSize = 14.sp
+            fontSize = 13.sp
           )
-          Spacer(modifier = Modifier.height(4.dp))
-          Text(
-            text = "Video preview could not be loaded or is in an unsupported codec.",
-            color = NoveliteCardBeige,
-            fontSize = 11.sp,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-          )
-          Spacer(modifier = Modifier.height(10.dp))
+          Spacer(modifier = Modifier.height(8.dp))
           Button(
             onClick = {
               hasError = false
@@ -228,7 +322,7 @@ fun NoveliteVideoPlayer(
             shape = RoundedCornerShape(8.dp),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
           ) {
-            Text("Retry Playback", fontSize = 11.sp, color = NoveliteDarkBrown, fontWeight = FontWeight.Bold)
+            Text("Retry", fontSize = 11.sp, color = NoveliteDarkBrown, fontWeight = FontWeight.Bold)
           }
         }
       }
@@ -236,7 +330,7 @@ fun NoveliteVideoPlayer(
 
     // Controls Overlay
     AnimatedVisibility(
-      visible = isControlsVisible && !hasError,
+      visible = isStarted && isControlsVisible && !hasError,
       enter = fadeIn(),
       exit = fadeOut(),
       modifier = Modifier.fillMaxSize()
@@ -247,7 +341,7 @@ fun NoveliteVideoPlayer(
           .background(Color.Black.copy(alpha = 0.45f))
           .padding(12.dp)
       ) {
-        // Top Bar (Title & Remove / Mute)
+        // Top Bar
         Row(
           modifier = Modifier
             .fillMaxWidth()
@@ -255,157 +349,118 @@ fun NoveliteVideoPlayer(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(
-              color = NoveliteCaramel,
-              shape = RoundedCornerShape(6.dp)
-            ) {
-              Text(
-                text = "🎬 STORY TEASER",
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                color = NoveliteDarkBrown
-              )
-            }
-            if (title != null) {
-              Spacer(modifier = Modifier.width(8.dp))
-              Text(
-                text = title,
-                color = NoveliteWhite,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1
-              )
-            }
-          }
+          Text(
+            text = title ?: "Story Teaser",
+            color = NoveliteWhite,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            modifier = Modifier.weight(1f)
+          )
 
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            // Mute toggle
+          Row {
             IconButton(
               onClick = {
+                isMuted = !isMuted
                 mediaPlayerRef?.let { mp ->
-                  isMuted = !isMuted
                   val vol = if (isMuted) 0f else 1f
                   mp.setVolume(vol, vol)
                 }
               },
-              modifier = Modifier
-                .size(32.dp)
-                .background(NoveliteDarkBrown.copy(alpha = 0.6f), CircleShape)
+              modifier = Modifier.size(32.dp)
             ) {
               Icon(
                 imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
                 contentDescription = if (isMuted) "Unmute" else "Mute",
                 tint = NoveliteWhite,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(18.dp)
               )
             }
 
             if (onRemove != null) {
-              Spacer(modifier = Modifier.width(6.dp))
               IconButton(
                 onClick = onRemove,
-                modifier = Modifier
-                  .size(32.dp)
-                  .background(NoveliteDarkBrown.copy(alpha = 0.6f), CircleShape)
+                modifier = Modifier.size(32.dp)
               ) {
                 Icon(
-                  imageVector = Icons.Default.Delete,
+                  imageVector = Icons.Default.Close,
                   contentDescription = "Remove video",
-                  tint = NoveliteCardBeige,
-                  modifier = Modifier.size(16.dp)
+                  tint = NoveliteWhite,
+                  modifier = Modifier.size(18.dp)
                 )
               }
             }
           }
         }
 
-        // Center Play / Pause / Replay Button
-        Box(
+        // Center Play / Pause
+        IconButton(
+          onClick = {
+            if (isPlaying) {
+              videoViewRef?.pause()
+              isPlaying = false
+            } else {
+              if (isCompleted) {
+                videoViewRef?.seekTo(0)
+                isCompleted = false
+              }
+              videoViewRef?.start()
+              isPlaying = true
+            }
+          },
           modifier = Modifier
             .align(Alignment.Center)
             .size(52.dp)
-            .clip(CircleShape)
-            .background(NoveliteDarkBrown.copy(alpha = 0.85f))
-            .clickable {
-              videoViewRef?.let { vv ->
-                if (isCompleted) {
-                  vv.seekTo(0)
-                  vv.start()
-                  isPlaying = true
-                  isCompleted = false
-                } else if (isPlaying) {
-                  vv.pause()
-                  isPlaying = false
-                } else {
-                  vv.start()
-                  isPlaying = true
-                }
-              }
-            },
-          contentAlignment = Alignment.Center
+            .background(NoveliteDarkBrown.copy(alpha = 0.75f), CircleShape)
         ) {
           Icon(
-            imageVector = when {
-              isCompleted -> Icons.Default.Replay
-              isPlaying -> Icons.Default.Pause
-              else -> Icons.Default.PlayArrow
-            },
+            imageVector = if (isPlaying) Icons.Default.Pause else (if (isCompleted) Icons.Default.Replay else Icons.Default.PlayArrow),
             contentDescription = if (isPlaying) "Pause" else "Play",
             tint = NoveliteWhite,
             modifier = Modifier.size(28.dp)
           )
         }
 
-        // Bottom Progress & Time Controls
+        // Bottom Progress Bar
         Column(
           modifier = Modifier
             .fillMaxWidth()
             .align(Alignment.BottomCenter)
         ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Text(
-              text = formatTime(currentPositionMs),
-              fontSize = 10.sp,
-              color = NoveliteWhite,
-              fontWeight = FontWeight.Bold
-            )
-
-            Text(
-              text = formatTime(durationMs),
-              fontSize = 10.sp,
-              color = NoveliteCardBeige
-            )
-          }
-
-          Spacer(modifier = Modifier.height(2.dp))
-
-          // Progress Bar
           val progress = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
           LinearProgressIndicator(
             progress = { progress },
             modifier = Modifier
               .fillMaxWidth()
-              .height(4.dp)
-              .clip(RoundedCornerShape(2.dp)),
+              .height(3.dp),
             color = NoveliteCaramel,
-            trackColor = NoveliteDarkBrown.copy(alpha = 0.5f)
+            trackColor = NoveliteWhite.copy(alpha = 0.3f)
           )
+          Spacer(modifier = Modifier.height(4.dp))
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+          ) {
+            Text(
+              text = formatTime(currentPositionMs),
+              color = NoveliteWhite,
+              fontSize = 10.sp
+            )
+            Text(
+              text = formatTime(durationMs),
+              color = NoveliteWhite,
+              fontSize = 10.sp
+            )
+          }
         }
       }
     }
   }
 }
 
-private fun formatTime(millis: Int): String {
-  val totalSeconds = millis / 1000
-  val minutes = totalSeconds / 60
-  val seconds = totalSeconds % 60
-  return String.format("%02d:%02d", minutes, seconds)
+private fun formatTime(ms: Int): String {
+  val totalSec = ms / 1000
+  val min = totalSec / 60
+  val sec = totalSec % 60
+  return "%02d:%02d".format(min, sec)
 }

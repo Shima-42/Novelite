@@ -71,6 +71,8 @@ import com.example.ui.components.DailyGoalSetting
 import com.example.ui.components.StoryCard
 import com.example.ui.components.VersesIHaveWovenIcon
 import com.example.ui.theme.NoveliteBorder
+import com.example.ui.theme.NoveliteButtonBg
+import com.example.ui.theme.NoveliteButtonText
 import com.example.ui.theme.NoveliteCardBeige
 import com.example.ui.theme.NoveliteCaramel
 import com.example.ui.theme.NoveliteCreamBg
@@ -335,37 +337,67 @@ fun ProfileScreen(viewModel: NoveliteViewModel) {
             onClick = { viewModel.navigateTo(Screen.ADMIN) },
             modifier = Modifier
               .fillMaxWidth()
-              .height(48.dp),
-            shape = RoundedCornerShape(12.dp),
+              .height(44.dp),
+            shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(
-              containerColor = NoveliteCardBeige,
-              contentColor = NoveliteDarkBrown
+              containerColor = NoveliteButtonBg,
+              contentColor = NoveliteButtonText
             ),
-            border = androidx.compose.foundation.BorderStroke(1.dp, NoveliteBorder)
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
           ) {
-            Icon(Icons.Default.AdminPanelSettings, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Admin & Moderation Center", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.Center
+            ) {
+              Icon(
+                Icons.Default.AdminPanelSettings,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = NoveliteButtonText
+              )
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                "Admin & Moderation Center",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = NoveliteButtonText
+              )
+            }
           }
 
           Spacer(modifier = Modifier.height(10.dp))
 
-          OutlinedButton(
+          Button(
             onClick = { viewModel.logout() },
             modifier = Modifier
               .fillMaxWidth()
-              .height(48.dp)
+              .height(44.dp)
               .testTag("profile_logout_button"),
-            shape = RoundedCornerShape(12.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, NoveliteBorder),
-            colors = ButtonDefaults.outlinedButtonColors(
-              containerColor = NoveliteCreamBg,
-              contentColor = NoveliteDarkBrown
-            )
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+              containerColor = NoveliteButtonBg,
+              contentColor = NoveliteButtonText
+            ),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
           ) {
-            Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp), tint = NoveliteDarkBrown)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Log Out of Novelite", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = NoveliteDarkBrown)
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.Center
+            ) {
+              Icon(
+                Icons.Default.ExitToApp,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = NoveliteButtonText
+              )
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                "Log Out of Novelite",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = NoveliteButtonText
+              )
+            }
           }
         }
       }
@@ -464,10 +496,13 @@ fun ProfileScreen(viewModel: NoveliteViewModel) {
             viewModel.updateProfile(editDisplayName, editBio, editIsPublic, editGoalMinutes)
             showEditProfileDialog = false
           },
-          colors = ButtonDefaults.buttonColors(containerColor = NoveliteDarkBrown),
-          shape = RoundedCornerShape(10.dp)
+          colors = ButtonDefaults.buttonColors(
+            containerColor = NoveliteButtonBg,
+            contentColor = NoveliteButtonText
+          ),
+          shape = RoundedCornerShape(14.dp)
         ) {
-          Text("Save Changes", color = NoveliteWhite)
+          Text("Save Changes", color = NoveliteButtonText, fontWeight = FontWeight.Bold)
         }
       },
       dismissButton = {
