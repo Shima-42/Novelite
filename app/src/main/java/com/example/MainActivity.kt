@@ -222,48 +222,47 @@ fun NoveliteApp(viewModel: NoveliteViewModel) {
         }
       }
     ) { innerPadding ->
-      Box(
+      Crossfade(
+        targetState = currentScreen,
         modifier = Modifier
           .fillMaxSize()
-          .padding(innerPadding)
-      ) {
-        NoveliteLogger.logRecomposition("NoveliteAppRoot")
-        Crossfade(targetState = currentScreen, label = "screenTransition") { screen ->
-          androidx.compose.runtime.LaunchedEffect(screen) {
-            NoveliteLogger.logRecomposition("Screen_$screen")
-          }
-          when (screen) {
-            Screen.AUTH -> LoginScreen(viewModel = viewModel)
-            Screen.ONBOARDING -> OnboardingScreen(viewModel = viewModel)
-            Screen.HOME -> HomeScreen(viewModel = viewModel)
-            Screen.EXPLORE -> ExploreScreen(viewModel = viewModel)
-            Screen.LIBRARY -> LibraryScreen(viewModel = viewModel)
-            Screen.WRITE -> WritingStudioScreen(viewModel = viewModel)
-            Screen.WRITER_DRAFT -> WriterDraftEditorScreen(
-              viewModel = viewModel,
-              storyId = viewModel.editingStoryId.value,
-              chapterId = viewModel.editingChapterId.value,
-              onBackClick = { viewModel.navigateTo(Screen.WRITE) }
-            )
-            Screen.PROFILE -> ProfileScreen(viewModel = viewModel)
-            Screen.STORY_DETAIL -> StoryDetailScreen(viewModel = viewModel)
-            Screen.READER -> ReaderScreen(viewModel = viewModel)
-            Screen.STREAK_DASHBOARD -> StreakDashboardScreen(viewModel = viewModel)
-            Screen.NOTIFICATIONS -> NotificationsScreen(viewModel = viewModel)
-            Screen.ADMIN -> AdminScreen(viewModel = viewModel)
-            Screen.DIAGNOSTIC -> DiagnosticScreen(viewModel = viewModel)
-          }
+          .padding(innerPadding),
+        label = "screenTransition"
+      ) { screen ->
+        androidx.compose.runtime.LaunchedEffect(screen) {
+          NoveliteLogger.logRecomposition("Screen_$screen")
         }
-
-        // Celebration Dialog Overlay
-        if (celebrationState.isVisible) {
-          CelebrationDialog(
-            streakDays = celebrationState.streakDays,
-            goalMinutes = celebrationState.goalMinutes,
-            badgeName = celebrationState.badgeName,
-            onDismiss = { viewModel.dismissCelebration() }
+        when (screen) {
+          Screen.AUTH -> LoginScreen(viewModel = viewModel)
+          Screen.ONBOARDING -> OnboardingScreen(viewModel = viewModel)
+          Screen.HOME -> HomeScreen(viewModel = viewModel)
+          Screen.EXPLORE -> ExploreScreen(viewModel = viewModel)
+          Screen.LIBRARY -> LibraryScreen(viewModel = viewModel)
+          Screen.WRITE -> WritingStudioScreen(viewModel = viewModel)
+          Screen.WRITER_DRAFT -> WriterDraftEditorScreen(
+            viewModel = viewModel,
+            storyId = viewModel.editingStoryId.value,
+            chapterId = viewModel.editingChapterId.value,
+            onBackClick = { viewModel.navigateTo(Screen.WRITE) }
           )
+          Screen.PROFILE -> ProfileScreen(viewModel = viewModel)
+          Screen.STORY_DETAIL -> StoryDetailScreen(viewModel = viewModel)
+          Screen.READER -> ReaderScreen(viewModel = viewModel)
+          Screen.STREAK_DASHBOARD -> StreakDashboardScreen(viewModel = viewModel)
+          Screen.NOTIFICATIONS -> NotificationsScreen(viewModel = viewModel)
+          Screen.ADMIN -> AdminScreen(viewModel = viewModel)
+          Screen.DIAGNOSTIC -> DiagnosticScreen(viewModel = viewModel)
         }
+      }
+
+      // Celebration Dialog Overlay
+      if (celebrationState.isVisible) {
+        CelebrationDialog(
+          streakDays = celebrationState.streakDays,
+          goalMinutes = celebrationState.goalMinutes,
+          badgeName = celebrationState.badgeName,
+          onDismiss = { viewModel.dismissCelebration() }
+        )
       }
     }
   }

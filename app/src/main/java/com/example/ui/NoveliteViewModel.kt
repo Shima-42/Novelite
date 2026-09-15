@@ -182,93 +182,31 @@ class NoveliteViewModel(
 
   fun navigateTo(screen: Screen) {
     NoveliteLogger.trackNavigationTiming("NavigateTo_$screen") {
-      viewModelScope.launch(Dispatchers.IO) {
-        val result = kotlinx.coroutines.withTimeoutOrNull(2000L) {
-          try {
-            true
-          } catch (e: Exception) {
-            android.util.Log.e("NoveliteNavVM", "Navigation error for $screen", e)
-            false
-          }
-        }
-        kotlinx.coroutines.withContext(Dispatchers.Main) {
-          if (result == true) {
-            _currentScreen.value = screen
-          } else {
-            android.util.Log.w("NoveliteNavVM", "Navigation timeout or failure for $screen, defaulting to HOME")
-            _currentScreen.value = Screen.HOME
-          }
-        }
-      }
+      _currentScreen.value = screen
     }
   }
 
   fun openStory(storyId: String) {
     NoveliteLogger.trackNavigationTiming("OpenStory_$storyId") {
-      viewModelScope.launch(Dispatchers.IO) {
-        val result = kotlinx.coroutines.withTimeoutOrNull(2000L) {
-          try {
-            _selectedStoryId.value = storyId
-            true
-          } catch (e: Exception) {
-            false
-          }
-        }
-        kotlinx.coroutines.withContext(Dispatchers.Main) {
-          if (result == true) {
-            _currentScreen.value = Screen.STORY_DETAIL
-          } else {
-            _currentScreen.value = Screen.HOME
-          }
-        }
-      }
+      _selectedStoryId.value = storyId
+      _currentScreen.value = Screen.STORY_DETAIL
     }
   }
 
   fun openReader(storyId: String, chapterId: String? = null) {
     NoveliteLogger.trackNavigationTiming("OpenReader_$storyId") {
-      viewModelScope.launch(Dispatchers.IO) {
-        val result = kotlinx.coroutines.withTimeoutOrNull(2000L) {
-          try {
-            _selectedStoryId.value = storyId
-            val story = stories.value.find { it.id == storyId }
-            _selectedChapterId.value = chapterId ?: story?.chapters?.firstOrNull()?.id
-            true
-          } catch (e: Exception) {
-            false
-          }
-        }
-        kotlinx.coroutines.withContext(Dispatchers.Main) {
-          if (result == true) {
-            _currentScreen.value = Screen.READER
-          } else {
-            _currentScreen.value = Screen.HOME
-          }
-        }
-      }
+      _selectedStoryId.value = storyId
+      val story = stories.value.find { it.id == storyId }
+      _selectedChapterId.value = chapterId ?: story?.chapters?.firstOrNull()?.id
+      _currentScreen.value = Screen.READER
     }
   }
 
   fun openWriterDraft(storyId: String? = null, chapterId: String? = null) {
     NoveliteLogger.trackNavigationTiming("OpenWriterDraft") {
-      viewModelScope.launch(Dispatchers.IO) {
-        val result = kotlinx.coroutines.withTimeoutOrNull(2000L) {
-          try {
-            _editingStoryId.value = storyId
-            _editingChapterId.value = chapterId
-            true
-          } catch (e: Exception) {
-            false
-          }
-        }
-        kotlinx.coroutines.withContext(Dispatchers.Main) {
-          if (result == true) {
-            _currentScreen.value = Screen.WRITER_DRAFT
-          } else {
-            _currentScreen.value = Screen.HOME
-          }
-        }
-      }
+      _editingStoryId.value = storyId
+      _editingChapterId.value = chapterId
+      _currentScreen.value = Screen.WRITER_DRAFT
     }
   }
 
@@ -278,23 +216,8 @@ class NoveliteViewModel(
 
   fun openAuthorProfile(authorId: String) {
     NoveliteLogger.trackNavigationTiming("OpenAuthorProfile_$authorId") {
-      viewModelScope.launch(Dispatchers.IO) {
-        val result = kotlinx.coroutines.withTimeoutOrNull(2000L) {
-          try {
-            _selectedAuthorId.value = authorId
-            true
-          } catch (e: Exception) {
-            false
-          }
-        }
-        kotlinx.coroutines.withContext(Dispatchers.Main) {
-          if (result == true) {
-            _currentScreen.value = Screen.PROFILE
-          } else {
-            _currentScreen.value = Screen.HOME
-          }
-        }
-      }
+      _selectedAuthorId.value = authorId
+      _currentScreen.value = Screen.PROFILE
     }
   }
 
