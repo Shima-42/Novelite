@@ -58,6 +58,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.AuthorStatus
 import com.example.data.SampleData
+import com.example.ui.components.NoveliteButton
+import com.example.ui.components.NoveliteButtonStyle
 import com.example.data.Story
 import com.example.data.UserProfile
 import com.example.ui.NoveliteViewModel
@@ -585,38 +587,16 @@ fun FeaturedStoryHeroCard(
 
           Spacer(modifier = Modifier.height(16.dp))
 
-          Button(
+          NoveliteButton(
+            text = "Continue Reading",
             onClick = onResumeClick,
+            style = NoveliteButtonStyle.PRIMARY,
+            icon = Icons.Default.PlayArrow,
             modifier = Modifier
               .fillMaxWidth()
               .height(44.dp)
-              .testTag("hero_resume_button"),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(
-              containerColor = NoveliteButtonBg,
-              contentColor = NoveliteButtonText
-            ),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-          ) {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.Center
-            ) {
-              Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = null,
-                tint = NoveliteButtonText,
-                modifier = Modifier.size(18.dp)
-              )
-              Spacer(modifier = Modifier.width(8.dp))
-              Text(
-                text = "Continue Reading",
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = NoveliteButtonText
-              )
-            }
-          }
+              .testTag("hero_resume_button")
+          )
         }
       }
     }

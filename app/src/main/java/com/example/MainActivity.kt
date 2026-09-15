@@ -55,10 +55,12 @@ import com.example.ui.screens.DiagnosticScreen
 import com.example.ui.screens.ExploreScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
+import com.example.ui.screens.LoginScreen
 import com.example.ui.screens.NotificationsScreen
 import com.example.ui.screens.OnboardingScreen
 import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.ReaderScreen
+import com.example.ui.screens.SignUpScreen
 import com.example.ui.screens.StoryDetailScreen
 import com.example.ui.screens.StreakDashboardScreen
 import com.example.ui.screens.WriterDraftEditorScreen
@@ -96,6 +98,15 @@ fun NoveliteApp(viewModel: NoveliteViewModel) {
   val isLoggedIn by viewModel.isLoggedIn.collectAsState()
   val isOnboarded by viewModel.isOnboarded.collectAsState()
   val celebrationState by viewModel.celebration.collectAsState()
+
+  androidx.compose.runtime.LaunchedEffect(isLoggedIn) {
+    NoveliteLogger.logRecomposition("AuthStateChanged: isLoggedIn=$isLoggedIn, currentScreen=$currentScreen")
+    if (!isLoggedIn && currentScreen != Screen.AUTH) {
+      viewModel.navigateTo(Screen.AUTH)
+    } else if (isLoggedIn && currentScreen == Screen.AUTH) {
+      viewModel.navigateTo(Screen.HOME)
+    }
+  }
 
   BackHandler(enabled = currentScreen != Screen.HOME) {
     when (currentScreen) {
@@ -156,7 +167,7 @@ fun NoveliteApp(viewModel: NoveliteViewModel) {
     )
   )
 
-  val showBottomBar = currentScreen in listOf(
+  val showBottomBar = isLoggedIn && currentScreen in listOf(
     Screen.HOME,
     Screen.EXPLORE,
     Screen.LIBRARY,
@@ -216,9 +227,13 @@ fun NoveliteApp(viewModel: NoveliteViewModel) {
           .fillMaxSize()
           .padding(innerPadding)
       ) {
+        NoveliteLogger.logRecomposition("NoveliteAppRoot")
         Crossfade(targetState = currentScreen, label = "screenTransition") { screen ->
+          androidx.compose.runtime.LaunchedEffect(screen) {
+            NoveliteLogger.logRecomposition("Screen_$screen")
+          }
           when (screen) {
-            Screen.AUTH -> AuthScreen(viewModel = viewModel)
+            Screen.AUTH -> LoginScreen(viewModel = viewModel)
             Screen.ONBOARDING -> OnboardingScreen(viewModel = viewModel)
             Screen.HOME -> HomeScreen(viewModel = viewModel)
             Screen.EXPLORE -> ExploreScreen(viewModel = viewModel)

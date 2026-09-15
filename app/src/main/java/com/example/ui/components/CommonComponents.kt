@@ -32,8 +32,12 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Timer
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ui.NoveliteViewModel
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -897,3 +901,272 @@ fun formatReads(count: Int): String {
     else -> "$count"
   }
 }
+
+@Composable
+fun LiteraryIllustration(
+  modifier: Modifier = Modifier
+) {
+  Box(
+    modifier = modifier
+      .size(72.dp)
+      .background(Color(0xFFF5E1DA), CircleShape),
+    contentAlignment = Alignment.Center
+  ) {
+    Box(
+      modifier = Modifier
+        .size(48.dp)
+        .background(Color(0xFFD49A89).copy(alpha = 0.3f), CircleShape),
+      contentAlignment = Alignment.Center
+    ) {
+      Icon(
+        imageVector = Icons.Default.MenuBook,
+        contentDescription = "Literary Story Illustration",
+        tint = Color(0xFFD49A89),
+        modifier = Modifier.size(28.dp)
+      )
+    }
+  }
+}
+
+@Composable
+fun ElegantStreakCounter(
+  viewModel: NoveliteViewModel,
+  modifier: Modifier = Modifier
+) {
+  val userProfile by viewModel.currentUser.collectAsStateWithLifecycle()
+  val streak = userProfile.readingStreak
+  val todayMinutes by viewModel.todayMinutesRead.collectAsStateWithLifecycle()
+
+  val isGoalMet = todayMinutes >= userProfile.readingGoalMinutes
+
+  val scale = if (isGoalMet) {
+    val infiniteTransition = rememberInfiniteTransition(label = "streakScale")
+    infiniteTransition.animateFloat(
+      initialValue = 1f,
+      targetValue = 1.05f,
+      animationSpec = infiniteRepeatable(
+        animation = tween(1000, easing = FastOutSlowInEasing),
+        repeatMode = RepeatMode.Reverse
+      ),
+      label = "scale"
+    ).value
+  } else {
+    1f
+  }
+
+  Surface(
+    modifier = modifier.scale(scale),
+    shape = RoundedCornerShape(16.dp),
+    color = Color(0xFFF5E1DA),
+    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFC88577).copy(alpha = 0.5f))
+  ) {
+    Row(
+      modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+      Box(
+        modifier = Modifier
+          .size(28.dp)
+          .background(Color(0xFFC88577), CircleShape),
+        contentAlignment = Alignment.Center
+      ) {
+        Text("🔥", fontSize = 14.sp)
+      }
+      Column {
+        Text(
+          text = "$streak-Day Streak${if (isGoalMet) " ✨" else ""}",
+          fontWeight = FontWeight.Bold,
+          fontSize = 12.sp,
+          color = NoveliteDarkBrown
+        )
+        Text(
+          text = if (isGoalMet) "Goal Completed!" else "Reading Journey",
+          fontSize = 10.sp,
+          color = if (isGoalMet) Color(0xFFC88577) else Color(0xFF6B7280)
+        )
+      }
+    }
+  }
+}
+
+@Composable
+fun StreakSaverReminder(
+  onSaveStreak: () -> Unit,
+  modifier: Modifier = Modifier
+) {
+  Surface(
+    modifier = modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(16.dp),
+    color = Color(0xFFF5E1DA),
+    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFC88577))
+  ) {
+    Row(
+      modifier = Modifier.padding(16.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.weight(1f)
+      ) {
+        Box(
+          modifier = Modifier
+            .size(36.dp)
+            .background(Color(0xFFC88577), CircleShape),
+          contentAlignment = Alignment.Center
+        ) {
+          Text("⏳", fontSize = 16.sp)
+        }
+        Column {
+          Text(
+            text = "Streak Saver Alert!",
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+            color = NoveliteDarkBrown
+          )
+          Text(
+            text = "Read for 5 mins today to keep your streak burning.",
+            fontSize = 11.sp,
+            color = Color(0xFF6B7280)
+          )
+        }
+      }
+      Button(
+        onClick = onSaveStreak,
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC88577)),
+        shape = RoundedCornerShape(20.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+      ) {
+        Text("Read Now", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+      }
+    }
+  }
+}
+
+@Composable
+fun WeeklyGoalSlider(
+  currentMinutes: Int,
+  targetMinutes: Int,
+  onTargetChanged: (Int) -> Unit,
+  modifier: Modifier = Modifier
+) {
+  Surface(
+    modifier = modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(16.dp),
+    color = Color.White,
+    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF5E1DA))
+  ) {
+    Column(modifier = Modifier.padding(16.dp)) {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = "Weekly Reading Goal",
+          fontWeight = FontWeight.Bold,
+          fontSize = 14.sp,
+          color = NoveliteDarkBrown
+        )
+        Text(
+          text = "$currentMinutes / $targetMinutes mins",
+          fontSize = 12.sp,
+          fontWeight = FontWeight.SemiBold,
+          color = Color(0xFFC88577)
+        )
+      }
+      Spacer(modifier = Modifier.height(10.dp))
+      androidx.compose.material3.Slider(
+        value = targetMinutes.toFloat(),
+        onValueChange = { onTargetChanged(it.toInt()) },
+        valueRange = 30f..300f,
+        steps = 9,
+        colors = androidx.compose.material3.SliderDefaults.colors(
+          thumbColor = Color(0xFFC88577),
+          activeTrackColor = Color(0xFFC88577),
+          inactiveTrackColor = Color(0xFFF5E1DA)
+        )
+      )
+      Text(
+        text = "Set your weekly target to stay inspired and build lifelong reading habits.",
+        fontSize = 11.sp,
+        color = Color(0xFF6B7280)
+      )
+    }
+  }
+}
+
+@Composable
+fun ReadingMilestoneTracker(
+  streakDays: Int,
+  modifier: Modifier = Modifier
+) {
+  val milestones = listOf(7, 30, 100)
+  Surface(
+    modifier = modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(16.dp),
+    color = Color.White,
+    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF5E1DA))
+  ) {
+    Column(modifier = Modifier.padding(16.dp)) {
+      Text(
+        text = "Streak Milestones & Badges",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = NoveliteDarkBrown
+      )
+      Spacer(modifier = Modifier.height(4.dp))
+      Text(
+        text = "Unlock digital badges as your streak grows.",
+        fontSize = 11.sp,
+        color = Color(0xFF6B7280)
+      )
+      Spacer(modifier = Modifier.height(14.dp))
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceAround
+      ) {
+        milestones.forEach { milestone ->
+          val unlocked = streakDays >= milestone
+          Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+              modifier = Modifier
+                .size(54.dp)
+                .background(
+                  color = if (unlocked) Color(0xFFF5E1DA) else Color(0xFFFDF6F0),
+                  shape = CircleShape
+                )
+                .border(
+                  width = 2.dp,
+                  color = if (unlocked) Color(0xFFC88577) else Color(0xFF6B7280).copy(alpha = 0.3f),
+                  shape = CircleShape
+                ),
+              contentAlignment = Alignment.Center
+            ) {
+              Text(
+                text = if (unlocked) "🏆" else "🔒",
+                fontSize = 20.sp
+              )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+              text = "$milestone Days",
+              fontWeight = FontWeight.Bold,
+              fontSize = 11.sp,
+              color = if (unlocked) NoveliteDarkBrown else Color(0xFF6B7280)
+            )
+            Text(
+              text = if (unlocked) "Unlocked" else "Locked",
+              fontSize = 9.sp,
+              color = if (unlocked) Color(0xFFC88577) else Color(0xFF6B7280)
+            )
+          }
+        }
+      }
+    }
+  }
+}
+
+

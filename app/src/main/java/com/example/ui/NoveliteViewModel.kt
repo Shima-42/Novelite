@@ -2,6 +2,7 @@ package com.example.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.NoveliteLogger
 import com.example.data.Achievement
 import com.example.data.AuthorStatus
 import com.example.data.Chapter
@@ -60,7 +61,9 @@ class NoveliteViewModel(
 ) : ViewModel() {
 
   // Current Navigation Screen
-  private val _currentScreen = MutableStateFlow(Screen.HOME)
+  private val _currentScreen = MutableStateFlow(
+    if (repository.isLoggedIn.value) Screen.HOME else Screen.AUTH
+  )
   val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
 
   // Selected Story & Chapter for Detail & Reader
@@ -178,34 +181,121 @@ class NoveliteViewModel(
   }
 
   fun navigateTo(screen: Screen) {
-    _currentScreen.value = screen
+    NoveliteLogger.trackNavigationTiming("NavigateTo_$screen") {
+      viewModelScope.launch(Dispatchers.IO) {
+        val result = kotlinx.coroutines.withTimeoutOrNull(2000L) {
+          try {
+            true
+          } catch (e: Exception) {
+            android.util.Log.e("NoveliteNavVM", "Navigation error for $screen", e)
+            false
+          }
+        }
+        kotlinx.coroutines.withContext(Dispatchers.Main) {
+          if (result == true) {
+            _currentScreen.value = screen
+          } else {
+            android.util.Log.w("NoveliteNavVM", "Navigation timeout or failure for $screen, defaulting to HOME")
+            _currentScreen.value = Screen.HOME
+          }
+        }
+      }
+    }
   }
 
   fun openStory(storyId: String) {
-    _selectedStoryId.value = storyId
-    _currentScreen.value = Screen.STORY_DETAIL
+    NoveliteLogger.trackNavigationTiming("OpenStory_$storyId") {
+      viewModelScope.launch(Dispatchers.IO) {
+        val result = kotlinx.coroutines.withTimeoutOrNull(2000L) {
+          try {
+            _selectedStoryId.value = storyId
+            true
+          } catch (e: Exception) {
+            false
+          }
+        }
+        kotlinx.coroutines.withContext(Dispatchers.Main) {
+          if (result == true) {
+            _currentScreen.value = Screen.STORY_DETAIL
+          } else {
+            _currentScreen.value = Screen.HOME
+          }
+        }
+      }
+    }
   }
 
   fun openReader(storyId: String, chapterId: String? = null) {
-    _selectedStoryId.value = storyId
-    val story = stories.value.find { it.id == storyId }
-    _selectedChapterId.value = chapterId ?: story?.chapters?.firstOrNull()?.id
-    _currentScreen.value = Screen.READER
+    NoveliteLogger.trackNavigationTiming("OpenReader_$storyId") {
+      viewModelScope.launch(Dispatchers.IO) {
+        val result = kotlinx.coroutines.withTimeoutOrNull(2000L) {
+          try {
+            _selectedStoryId.value = storyId
+            val story = stories.value.find { it.id == storyId }
+            _selectedChapterId.value = chapterId ?: story?.chapters?.firstOrNull()?.id
+            true
+          } catch (e: Exception) {
+            false
+          }
+        }
+        kotlinx.coroutines.withContext(Dispatchers.Main) {
+          if (result == true) {
+            _currentScreen.value = Screen.READER
+          } else {
+            _currentScreen.value = Screen.HOME
+          }
+        }
+      }
+    }
   }
 
   fun openWriterDraft(storyId: String? = null, chapterId: String? = null) {
-    _editingStoryId.value = storyId
-    _editingChapterId.value = chapterId
-    _currentScreen.value = Screen.WRITER_DRAFT
+    NoveliteLogger.trackNavigationTiming("OpenWriterDraft") {
+      viewModelScope.launch(Dispatchers.IO) {
+        val result = kotlinx.coroutines.withTimeoutOrNull(2000L) {
+          try {
+            _editingStoryId.value = storyId
+            _editingChapterId.value = chapterId
+            true
+          } catch (e: Exception) {
+            false
+          }
+        }
+        kotlinx.coroutines.withContext(Dispatchers.Main) {
+          if (result == true) {
+            _currentScreen.value = Screen.WRITER_DRAFT
+          } else {
+            _currentScreen.value = Screen.HOME
+          }
+        }
+      }
+    }
   }
 
   fun openStreakDashboard() {
-    _currentScreen.value = Screen.STREAK_DASHBOARD
+    navigateTo(Screen.STREAK_DASHBOARD)
   }
 
   fun openAuthorProfile(authorId: String) {
-    _selectedAuthorId.value = authorId
-    _currentScreen.value = Screen.PROFILE
+    NoveliteLogger.trackNavigationTiming("OpenAuthorProfile_$authorId") {
+      viewModelScope.launch(Dispatchers.IO) {
+        val result = kotlinx.coroutines.withTimeoutOrNull(2000L) {
+          try {
+            _selectedAuthorId.value = authorId
+            true
+          } catch (e: Exception) {
+            false
+          }
+        }
+        kotlinx.coroutines.withContext(Dispatchers.Main) {
+          if (result == true) {
+            _currentScreen.value = Screen.PROFILE
+          } else {
+            _currentScreen.value = Screen.HOME
+          }
+        }
+      }
+    }
   }
 
   fun dismissCelebration() {
@@ -357,14 +447,49 @@ class NoveliteViewModel(
   }
 
   // Auth & Onboarding
+  private val reservedUsernames = setOf("aurora_reads", "storyteller_alex", "novel_wizard", "admin")
+
+  fun validatePasswordStrength(password: String): String? {
+    if (password.length < 6) {
+      return "Password must be at least 6 characters long."
+    }
+    if (!password.any { it.isDigit() } && !password.any { !it.isLetterOrDigit() }) {
+      return "Password must contain at least one number or special character."
+    }
+    return null
+  }
+
+  fun validateUsernameUnique(username: String): Boolean {
+    return !reservedUsernames.contains(username.trim().lowercase())
+  }
+
   fun login(user: String, pass: String) {
     repository.login(user, pass)
     _currentScreen.value = Screen.HOME
+    viewModelScope.launch(Dispatchers.IO) {
+      NoveliteLogger.logRecomposition("NoveliteViewModel: Logging in user $user")
+      try {
+        com.google.firebase.auth.FirebaseAuth.getInstance().signInWithEmailAndPassword(
+          if (user.contains("@")) user else "$user@novelite.app",
+          pass
+        )
+      } catch (e: Throwable) {
+        NoveliteLogger.logRecomposition("FirebaseAuth signIn notice: ${e.message}")
+      }
+    }
   }
 
   fun signup(user: String, email: String, pass: String) {
     repository.signup(user, email, pass)
     _currentScreen.value = Screen.ONBOARDING
+    viewModelScope.launch(Dispatchers.IO) {
+      NoveliteLogger.logRecomposition("NoveliteViewModel: Registering user $user")
+      try {
+        com.google.firebase.auth.FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, pass)
+      } catch (e: Throwable) {
+        NoveliteLogger.logRecomposition("FirebaseAuth createUser notice: ${e.message}")
+      }
+    }
   }
 
   fun completeOnboarding(role: UserRole, genres: List<String>, goalMinutes: Int) {
@@ -375,6 +500,19 @@ class NoveliteViewModel(
   fun logout() {
     repository.logout()
     _currentScreen.value = Screen.AUTH
+    viewModelScope.launch(Dispatchers.IO) {
+      NoveliteLogger.logRecomposition("Signing out user from NoveliteViewModel...")
+      try {
+        com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+        NoveliteLogger.logRecomposition("FirebaseAuth signOut complete")
+      } catch (e: Throwable) {
+        NoveliteLogger.logRecomposition("FirebaseAuth signOut notice: ${e.message}")
+      }
+    }
+  }
+
+  fun signOut() {
+    logout()
   }
 
   fun updateProfile(displayName: String, bio: String, isPublic: Boolean, goalMins: Int) {

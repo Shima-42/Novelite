@@ -279,6 +279,24 @@ fun ProfileScreen(viewModel: NoveliteViewModel) {
       }
     }
 
+    // Reading Milestone Tracker & Weekly Goal Slider
+    item {
+      Spacer(modifier = Modifier.height(12.dp))
+      Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+        com.example.ui.components.ReadingMilestoneTracker(
+          streakDays = profileUser.readingStreak
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        var weeklyTarget by remember { mutableStateOf(70) }
+        val todayMinutes by viewModel.todayMinutesRead.collectAsState()
+        com.example.ui.components.WeeklyGoalSlider(
+          currentMinutes = todayMinutes * 7,
+          targetMinutes = weeklyTarget,
+          onTargetChanged = { weeklyTarget = it }
+        )
+      }
+    }
+
     // Authored Stories Section: Verses I Have Woven
     item {
       Spacer(modifier = Modifier.height(16.dp))
@@ -367,38 +385,16 @@ fun ProfileScreen(viewModel: NoveliteViewModel) {
 
           Spacer(modifier = Modifier.height(10.dp))
 
-          Button(
-            onClick = { viewModel.logout() },
+          com.example.ui.components.NoveliteButton(
+            text = "Sign Out",
+            onClick = { viewModel.signOut() },
+            style = com.example.ui.components.NoveliteButtonStyle.SECONDARY,
+            icon = Icons.Default.ExitToApp,
             modifier = Modifier
               .fillMaxWidth()
-              .height(44.dp)
-              .testTag("profile_logout_button"),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(
-              containerColor = NoveliteButtonBg,
-              contentColor = NoveliteButtonText
-            ),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-          ) {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.Center
-            ) {
-              Icon(
-                Icons.Default.ExitToApp,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = NoveliteButtonText
-              )
-              Spacer(modifier = Modifier.width(8.dp))
-              Text(
-                "Log Out of Novelite",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = NoveliteButtonText
-              )
-            }
-          }
+              .height(48.dp)
+              .testTag("profile_logout_button")
+          )
         }
       }
     }

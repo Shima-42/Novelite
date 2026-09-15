@@ -170,6 +170,13 @@ fun StreakDashboardScreen(viewModel: NoveliteViewModel) {
         .padding(horizontal = 20.dp, vertical = 12.dp),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
+      if (todayMinutes < currentUser.readingGoalMinutes) {
+        com.example.ui.components.StreakSaverReminder(
+          onSaveStreak = { viewModel.repository.addReadingTime(5) }
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+      }
+
       // Hero Flame
       Box(
         modifier = Modifier

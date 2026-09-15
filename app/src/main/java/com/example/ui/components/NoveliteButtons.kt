@@ -93,8 +93,8 @@ fun NovelitePrimaryButton(
   trailingIcon: ImageVector? = null,
   enabled: Boolean = true,
   shape: Shape = NoveliteButtonShape,
-  containerColor: Color = NoveliteButtonBg,
-  contentColor: Color = NoveliteButtonText,
+  containerColor: Color = Color(0xFFC88577),
+  contentColor: Color = Color.White,
   fontSize: TextUnit = 13.sp,
   contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 9.dp),
   minHeight: Dp = 40.dp,
@@ -147,3 +147,106 @@ fun NovelitePrimaryButton(
     }
   }
 }
+
+enum class NoveliteButtonStyle {
+  PRIMARY,   // Background #C88577, Text #FFFFFF
+  DARK,      // Background #4A2C2A, Text #FFFFFF
+  SECONDARY, // Background #FFFFFF, Text #4A2C2A, Border #C88577
+  SOFT,      // Background #F5E1DA, Text #4A2C2A
+  ACCENT     // Background #D49A89, Text #4A2C2A
+}
+
+@Composable
+fun NoveliteButton(
+  text: String,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+  style: NoveliteButtonStyle = NoveliteButtonStyle.PRIMARY,
+  icon: ImageVector? = null,
+  iconDescription: String? = null,
+  trailingIcon: ImageVector? = null,
+  enabled: Boolean = true,
+  isLoading: Boolean = false,
+  loadingText: String = "Processing...",
+  shape: Shape = NoveliteButtonShape,
+  fontSize: TextUnit = 13.sp,
+  contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 9.dp),
+  minHeight: Dp = 40.dp
+) {
+  val (containerColor, contentColor, border) = when (style) {
+    NoveliteButtonStyle.PRIMARY -> Triple(Color(0xFFC88577), Color(0xFFFFFFFF), null)
+    NoveliteButtonStyle.DARK -> Triple(Color(0xFF4A2C2A), Color(0xFFFFFFFF), null)
+    NoveliteButtonStyle.SECONDARY -> Triple(Color(0xFFFFFFFF), Color(0xFF4A2C2A), BorderStroke(1.dp, Color(0xFFC88577)))
+    NoveliteButtonStyle.SOFT -> Triple(Color(0xFFF5E1DA), Color(0xFF4A2C2A), null)
+    NoveliteButtonStyle.ACCENT -> Triple(Color(0xFFD49A89), Color(0xFF4A2C2A), null)
+  }
+
+  Button(
+    onClick = onClick,
+    modifier = modifier.heightIn(min = minHeight),
+    enabled = enabled && !isLoading,
+    shape = shape,
+    colors = ButtonDefaults.buttonColors(
+      containerColor = containerColor,
+      contentColor = contentColor,
+      disabledContainerColor = containerColor.copy(alpha = 0.5f),
+      disabledContentColor = contentColor.copy(alpha = 0.6f)
+    ),
+    contentPadding = contentPadding,
+    border = border
+  ) {
+    CompositionLocalProvider(LocalContentColor provides contentColor) {
+      Row(
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        if (isLoading) {
+          androidx.compose.material3.CircularProgressIndicator(
+            modifier = Modifier.size(18.dp),
+            color = contentColor,
+            strokeWidth = 2.dp
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = loadingText,
+            color = contentColor,
+            fontSize = fontSize,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+          )
+        } else {
+          if (icon != null) {
+            Icon(
+              imageVector = icon,
+              contentDescription = iconDescription,
+              tint = contentColor,
+              modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(7.dp))
+          }
+
+          Text(
+            text = text,
+            color = contentColor,
+            fontSize = fontSize,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+
+          if (trailingIcon != null) {
+            Spacer(modifier = Modifier.width(7.dp))
+            Icon(
+              imageVector = trailingIcon,
+              contentDescription = null,
+              tint = contentColor,
+              modifier = Modifier.size(18.dp)
+            )
+          }
+        }
+      }
+    }
+  }
+}
+

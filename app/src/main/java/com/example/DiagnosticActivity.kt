@@ -67,5 +67,16 @@ fun DiagnosticContent() {
         .fillMaxWidth()
         .testTag("diagnostic_text_input")
     )
+    Spacer(modifier = Modifier.height(24.dp))
+    val context = androidx.compose.ui.platform.LocalContext.current
+    Button(
+      onClick = {
+        val intent = android.content.Intent(context, MainActivity::class.java)
+        context.startActivity(intent)
+      },
+      modifier = Modifier.testTag("launch_main_activity_button")
+    ) {
+      Text("Open Main App")
+    }
   }
 }

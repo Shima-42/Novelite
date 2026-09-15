@@ -40,7 +40,13 @@ class NoveliteRepository {
   )
   val currentUser: StateFlow<UserProfile> = _currentUser.asStateFlow()
 
-  private val _isLoggedIn = MutableStateFlow(true)
+  private val _isLoggedIn = MutableStateFlow(
+    try {
+      com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null
+    } catch (e: Throwable) {
+      false
+    }
+  )
   val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
   private val _isOnboarded = MutableStateFlow(true)

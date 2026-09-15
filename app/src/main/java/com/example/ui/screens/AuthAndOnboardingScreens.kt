@@ -58,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -67,8 +68,12 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.widthIn
+import com.example.ui.components.ResponsiveScreenContainer
 import com.example.data.UserRole
 import com.example.ui.NoveliteViewModel
+import com.example.ui.components.NoveliteButton
+import com.example.ui.components.NoveliteButtonStyle
 import com.example.ui.components.NoveliteLogo
 import com.example.ui.components.NoveliteLogoSymbol
 import com.example.ui.theme.NoveliteBorder
@@ -83,25 +88,29 @@ import com.example.ui.theme.NoveliteWhite
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AuthScreen(viewModel: NoveliteViewModel) {
-  var selectedTab by remember { mutableStateOf(0) } // 0: Login, 1: Sign Up, 2: Forgot Password
+fun AuthScreen(viewModel: NoveliteViewModel, initialTab: Int = 0) {
+  var selectedTab by remember { mutableStateOf(initialTab) } // 0: Login, 1: Sign Up, 2: Forgot Password
 
-  var username by remember { mutableStateOf("aurora_reads") }
-  var email by remember { mutableStateOf("aurora@novelite.app") }
-  var password by remember { mutableStateOf("password123") }
+  var fullName by remember { mutableStateOf("") }
+  var username by remember { mutableStateOf("") }
+  var email by remember { mutableStateOf("") }
+  var password by remember { mutableStateOf("") }
+  var rememberMe by remember { mutableStateOf(true) }
   var passwordVisible by remember { mutableStateOf(false) }
   var resetEmailSent by remember { mutableStateOf(false) }
+  var isLoading by remember { mutableStateOf(false) }
+  var errorMessage by remember { mutableStateOf<String?>(null) }
 
-  Box(
+  ResponsiveScreenContainer(
     modifier = Modifier
       .fillMaxSize()
       .background(NoveliteCreamBg)
-  ) {
+  ) { isWideScreen, horizontalPadding ->
     Column(
       modifier = Modifier
         .fillMaxSize()
         .verticalScroll(rememberScrollState())
-        .padding(horizontal = 24.dp, vertical = 36.dp),
+        .padding(horizontal = horizontalPadding, vertical = 24.dp),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
       Spacer(modifier = Modifier.height(16.dp))
@@ -109,103 +118,157 @@ fun AuthScreen(viewModel: NoveliteViewModel) {
       // Logo + Brand Header
       NoveliteLogoSymbol(size = 56.dp)
 
-      Spacer(modifier = Modifier.height(14.dp))
+      Spacer(modifier = Modifier.height(12.dp))
+
+      com.example.ui.components.LiteraryIllustration()
+
+      Spacer(modifier = Modifier.height(16.dp))
 
       Text(
         text = "NOVELITE",
         fontFamily = FontFamily.Serif,
         style = MaterialTheme.typography.headlineMedium,
         fontWeight = FontWeight.Bold,
-        letterSpacing = 2.sp,
+        letterSpacing = 3.sp,
         color = NoveliteDarkBrown
       )
 
+      Spacer(modifier = Modifier.height(6.dp))
+
       Text(
-        text = "Read. Write. Connect. Keep Your Streak Alive.",
-        style = MaterialTheme.typography.bodySmall,
-        color = NoveliteWarmBrown,
-        textAlign = TextAlign.Center,
-        fontWeight = FontWeight.Medium
+        text = when (selectedTab) {
+          0 -> "Welcome back to your stories."
+          1 -> "Begin your story."
+          else -> "Password recovery."
+        },
+        fontFamily = FontFamily.Serif,
+        style = MaterialTheme.typography.titleMedium,
+        color = NoveliteDarkBrown,
+        fontWeight = FontWeight.SemiBold,
+        textAlign = TextAlign.Center
       )
 
-      Spacer(modifier = Modifier.height(28.dp))
+      Spacer(modifier = Modifier.height(4.dp))
+
+      Text(
+        text = when (selectedTab) {
+          0 -> "Pick up where you left off, discover something new, or continue writing your next chapter."
+          1 -> "Create your Novelite account and find your place among stories, readers, and writers."
+          else -> "Enter your registered email address to receive password reset instructions."
+        },
+        style = MaterialTheme.typography.bodySmall,
+        color = Color(0xFF6B7280),
+        textAlign = TextAlign.Center,
+        modifier = Modifier.padding(horizontal = 16.dp)
+      )
+
+      Spacer(modifier = Modifier.height(24.dp))
 
       // Auth Card
       Card(
         modifier = Modifier
-          .fillMaxWidth()
+          .fillMaxWidth(if (isWideScreen) 0.85f else 1f)
+          .widthIn(max = 520.dp)
           .testTag("auth_card"),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = NoveliteCardBeige),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         border = androidx.compose.foundation.BorderStroke(1.dp, NoveliteBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
       ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-          // Tab Header
+        Column(modifier = Modifier.padding(24.dp)) {
+          // Tab Header / Selector
           TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = NoveliteCardBeige,
+            selectedTabIndex = if (selectedTab == 2) 0 else selectedTab,
+            containerColor = Color(0xFFF5E1DA),
             contentColor = NoveliteDarkBrown,
             indicator = { tabPositions ->
-              TabRowDefaults.SecondaryIndicator(
-                Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                color = NoveliteDarkBrown
-              )
-            }
+              if (selectedTab < 2) {
+                TabRowDefaults.SecondaryIndicator(
+                  Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                  color = Color(0xFFC88577),
+                  height = 3.dp
+                )
+              }
+            },
+            divider = {}
           ) {
             Tab(
               selected = selectedTab == 0,
-              onClick = { selectedTab = 0 },
-              text = { Text("Log In", fontWeight = FontWeight.Bold, color = if (selectedTab == 0) NoveliteDarkBrown else NoveliteTextMuted) }
+              onClick = { selectedTab = 0; errorMessage = null },
+              text = { Text("Log In", fontWeight = FontWeight.Bold, color = if (selectedTab == 0) NoveliteDarkBrown else Color(0xFF6B7280)) }
             )
             Tab(
               selected = selectedTab == 1,
-              onClick = { selectedTab = 1 },
-              text = { Text("Sign Up", fontWeight = FontWeight.Bold, color = if (selectedTab == 1) NoveliteDarkBrown else NoveliteTextMuted) }
-            )
-            Tab(
-              selected = selectedTab == 2,
-              onClick = { selectedTab = 2 },
-              text = { Text("Reset", fontWeight = FontWeight.Bold, color = if (selectedTab == 2) NoveliteDarkBrown else NoveliteTextMuted) }
+              onClick = { selectedTab = 1; errorMessage = null },
+              text = { Text("Sign Up", fontWeight = FontWeight.Bold, color = if (selectedTab == 1) NoveliteDarkBrown else Color(0xFF6B7280)) }
             )
           }
 
           Spacer(modifier = Modifier.height(24.dp))
 
+          if (errorMessage != null) {
+            Surface(
+              color = Color(0xFFF5E1DA),
+              shape = RoundedCornerShape(8.dp),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              Text(
+                text = errorMessage ?: "",
+                color = NoveliteDarkBrown,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(12.dp)
+              )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+          }
+
           when (selectedTab) {
             0 -> {
-              // LOGIN
+              // LOGIN FORM
               OutlinedTextField(
                 value = username,
-                onValueChange = { username = it },
-                label = { Text("Username or Email") },
+                onValueChange = { username = it; errorMessage = null },
+                label = { Text("Email or Username") },
+                placeholder = { Text("e.g. aurora@novelite.app", color = Color(0xFF6B7280)) },
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = NoveliteDarkBrown) },
                 modifier = Modifier
                   .fillMaxWidth()
                   .testTag("login_username_input"),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                  focusedBorderColor = NoveliteDarkBrown,
+                  focusedBorderColor = Color(0xFFC88577),
                   unfocusedBorderColor = NoveliteBorder,
-                  focusedTextColor = NoveliteTextPrimary,
-                  unfocusedTextColor = NoveliteTextPrimary
+                  focusedTextColor = NoveliteDarkBrown,
+                  unfocusedTextColor = NoveliteDarkBrown,
+                  focusedContainerColor = Color.White,
+                  unfocusedContainerColor = Color.White
                 ),
                 singleLine = true
               )
+              if (username.isNotBlank() && username.contains("@") && !username.contains(".")) {
+                Text(
+                  text = "Please enter a valid email address.",
+                  color = Color(0xFFC88577),
+                  fontSize = 11.sp,
+                  modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+                )
+              }
 
-              Spacer(modifier = Modifier.height(14.dp))
+              Spacer(modifier = Modifier.height(12.dp))
 
               OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = { password = it; errorMessage = null },
                 label = { Text("Password") },
+                placeholder = { Text("••••••••", color = Color(0xFF6B7280)) },
                 leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = NoveliteDarkBrown) },
                 trailingIcon = {
                   IconButton(onClick = { passwordVisible = !passwordVisible }) {
                     Icon(
                       imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                      contentDescription = null,
-                      tint = NoveliteTextMuted
+                      contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                      tint = Color(0xFF6B7280)
                     )
                   }
                 },
@@ -215,59 +278,154 @@ fun AuthScreen(viewModel: NoveliteViewModel) {
                   .testTag("login_password_input"),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                  focusedBorderColor = NoveliteDarkBrown,
+                  focusedBorderColor = Color(0xFFC88577),
                   unfocusedBorderColor = NoveliteBorder,
-                  focusedTextColor = NoveliteTextPrimary,
-                  unfocusedTextColor = NoveliteTextPrimary
+                  focusedTextColor = NoveliteDarkBrown,
+                  unfocusedTextColor = NoveliteDarkBrown,
+                  focusedContainerColor = Color.White,
+                  unfocusedContainerColor = Color.White
                 ),
                 singleLine = true
               )
+              if (password.isNotEmpty() && password.length < 6) {
+                Text(
+                  text = "Password should be at least 6 characters.",
+                  color = Color(0xFFC88577),
+                  fontSize = 11.sp,
+                  modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+                )
+              }
 
               Spacer(modifier = Modifier.height(8.dp))
 
               Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
               ) {
-                TextButton(onClick = { selectedTab = 2 }) {
-                  Text("Forgot Password?", color = NoveliteWarmBrown, fontSize = 12.sp)
+                Row(
+                  verticalAlignment = Alignment.CenterVertically,
+                  modifier = Modifier.clickable { rememberMe = !rememberMe }
+                ) {
+                  androidx.compose.material3.Checkbox(
+                    checked = rememberMe,
+                    onCheckedChange = { rememberMe = it },
+                    colors = androidx.compose.material3.CheckboxDefaults.colors(
+                      checkedColor = Color(0xFFC88577)
+                    )
+                  )
+                  Text("Remember me", fontSize = 13.sp, color = Color(0xFF6B7280))
+                }
+
+                TextButton(onClick = { selectedTab = 2; errorMessage = null }) {
+                  Text("Forgot password?", color = Color(0xFFC88577), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
               }
 
-              Spacer(modifier = Modifier.height(12.dp))
+              Spacer(modifier = Modifier.height(16.dp))
 
-              Button(
-                onClick = { viewModel.login(username, password) },
+              NoveliteButton(
+                text = "Log In",
+                onClick = {
+                  if (username.isBlank()) {
+                    errorMessage = "Please enter your email or username."
+                    return@NoveliteButton
+                  }
+                  if (password.isBlank()) {
+                    errorMessage = "Please enter your password."
+                    return@NoveliteButton
+                  }
+                  try {
+                    isLoading = true
+                    viewModel.login(username, password)
+                  } finally {
+                    isLoading = false
+                  }
+                },
                 modifier = Modifier
                   .fillMaxWidth()
                   .height(48.dp)
                   .testTag("login_submit_button"),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                  containerColor = NoveliteDarkBrown,
-                  contentColor = NoveliteWhite
-                )
+                style = NoveliteButtonStyle.PRIMARY,
+                isLoading = isLoading
+              )
+
+              Spacer(modifier = Modifier.height(12.dp))
+
+              NoveliteButton(
+                text = "Continue with Google",
+                onClick = {
+                  try {
+                    isLoading = true
+                    viewModel.login("google_user@novelite.app", "google_auth")
+                  } finally {
+                    isLoading = false
+                  }
+                },
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .height(48.dp)
+                  .testTag("google_login_button"),
+                style = NoveliteButtonStyle.SECONDARY,
+                isLoading = isLoading
+              )
+
+              Spacer(modifier = Modifier.height(20.dp))
+
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
               ) {
-                Text("Log In to Novelite", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text("Don't have an account? ", color = Color(0xFF6B7280), fontSize = 13.sp)
+                TextButton(onClick = { selectedTab = 1; errorMessage = null }) {
+                  Text("Create one", color = Color(0xFFC88577), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
               }
             }
 
             1 -> {
-              // SIGN UP
+              // SIGN UP FORM
+              OutlinedTextField(
+                value = fullName,
+                onValueChange = { fullName = it; errorMessage = null },
+                label = { Text("Full Name") },
+                placeholder = { Text("Aurora Vance", color = Color(0xFF6B7280)) },
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = NoveliteDarkBrown) },
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("signup_name_input"),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                  focusedBorderColor = Color(0xFFC88577),
+                  unfocusedBorderColor = NoveliteBorder,
+                  focusedTextColor = NoveliteDarkBrown,
+                  unfocusedTextColor = NoveliteDarkBrown,
+                  focusedContainerColor = Color.White,
+                  unfocusedContainerColor = Color.White
+                ),
+                singleLine = true
+              )
+
+              Spacer(modifier = Modifier.height(12.dp))
+
               OutlinedTextField(
                 value = username,
-                onValueChange = { username = it },
-                label = { Text("Choose a Username") },
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = NoveliteDarkBrown) },
+                onValueChange = { username = it; errorMessage = null },
+                label = { Text("Username") },
+                placeholder = { Text("aurora_reads", color = Color(0xFF6B7280)) },
+                leadingIcon = { Icon(Icons.Default.Create, contentDescription = null, tint = NoveliteDarkBrown) },
                 modifier = Modifier
                   .fillMaxWidth()
                   .testTag("signup_username_input"),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                  focusedBorderColor = NoveliteDarkBrown,
+                  focusedBorderColor = Color(0xFFC88577),
                   unfocusedBorderColor = NoveliteBorder,
-                  focusedTextColor = NoveliteTextPrimary,
-                  unfocusedTextColor = NoveliteTextPrimary
+                  focusedTextColor = NoveliteDarkBrown,
+                  unfocusedTextColor = NoveliteDarkBrown,
+                  focusedContainerColor = Color.White,
+                  unfocusedContainerColor = Color.White
                 ),
                 singleLine = true
               )
@@ -276,8 +434,9 @@ fun AuthScreen(viewModel: NoveliteViewModel) {
 
               OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = { email = it; errorMessage = null },
                 label = { Text("Email Address") },
+                placeholder = { Text("aurora@novelite.app", color = Color(0xFF6B7280)) },
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = NoveliteDarkBrown) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier
@@ -285,10 +444,12 @@ fun AuthScreen(viewModel: NoveliteViewModel) {
                   .testTag("signup_email_input"),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                  focusedBorderColor = NoveliteDarkBrown,
+                  focusedBorderColor = Color(0xFFC88577),
                   unfocusedBorderColor = NoveliteBorder,
-                  focusedTextColor = NoveliteTextPrimary,
-                  unfocusedTextColor = NoveliteTextPrimary
+                  focusedTextColor = NoveliteDarkBrown,
+                  unfocusedTextColor = NoveliteDarkBrown,
+                  focusedContainerColor = Color.White,
+                  unfocusedContainerColor = Color.White
                 ),
                 singleLine = true
               )
@@ -297,101 +458,170 @@ fun AuthScreen(viewModel: NoveliteViewModel) {
 
               OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
-                label = { Text("Create Password") },
+                onValueChange = { password = it; errorMessage = null },
+                label = { Text("Password") },
+                placeholder = { Text("At least 6 characters", color = Color(0xFF6B7280)) },
                 leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = NoveliteDarkBrown) },
+                trailingIcon = {
+                  IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                      imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                      contentDescription = null,
+                      tint = Color(0xFF6B7280)
+                    )
+                  }
+                },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 modifier = Modifier
                   .fillMaxWidth()
                   .testTag("signup_password_input"),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                  focusedBorderColor = NoveliteDarkBrown,
+                  focusedBorderColor = Color(0xFFC88577),
                   unfocusedBorderColor = NoveliteBorder,
-                  focusedTextColor = NoveliteTextPrimary,
-                  unfocusedTextColor = NoveliteTextPrimary
+                  focusedTextColor = NoveliteDarkBrown,
+                  unfocusedTextColor = NoveliteDarkBrown,
+                  focusedContainerColor = Color.White,
+                  unfocusedContainerColor = Color.White
                 ),
                 singleLine = true
               )
 
               Spacer(modifier = Modifier.height(20.dp))
 
-              Button(
-                onClick = { viewModel.signup(username, email, password) },
+              NoveliteButton(
+                text = "Create Account",
+                onClick = {
+                  if (fullName.isBlank()) {
+                    errorMessage = "Please enter your full name."
+                    return@NoveliteButton
+                  }
+                  if (!viewModel.validateUsernameUnique(username)) {
+                    errorMessage = "Username '$username' is already taken. Please choose another username."
+                    return@NoveliteButton
+                  }
+                  val pwdError = viewModel.validatePasswordStrength(password)
+                  if (pwdError != null) {
+                    errorMessage = pwdError
+                    return@NoveliteButton
+                  }
+                  try {
+                    isLoading = true
+                    viewModel.signup(username, email, password)
+                  } finally {
+                    isLoading = false
+                  }
+                },
                 modifier = Modifier
                   .fillMaxWidth()
                   .height(48.dp)
                   .testTag("signup_submit_button"),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                  containerColor = NoveliteDarkBrown,
-                  contentColor = NoveliteWhite
-                )
+                style = NoveliteButtonStyle.PRIMARY,
+                isLoading = isLoading
+              )
+
+              Spacer(modifier = Modifier.height(12.dp))
+
+              NoveliteButton(
+                text = "Continue with Google",
+                onClick = {
+                  try {
+                    isLoading = true
+                    viewModel.signup("google_user", "google_user@novelite.app", "google_auth")
+                  } finally {
+                    isLoading = false
+                  }
+                },
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .height(48.dp)
+                  .testTag("google_signup_button"),
+                style = NoveliteButtonStyle.SECONDARY,
+                isLoading = isLoading
+              )
+
+              Spacer(modifier = Modifier.height(20.dp))
+
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
               ) {
-                Text("Create Account & Start Streak 🔥", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Already have an account? ", color = Color(0xFF6B7280), fontSize = 13.sp)
+                TextButton(onClick = { selectedTab = 0; errorMessage = null }) {
+                  Text("Log in", color = Color(0xFFC88577), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
               }
             }
 
             2 -> {
               // FORGOT PASSWORD
-              Text(
-                text = "Enter your email to receive a password reset link.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = NoveliteTextMuted
-              )
-
-              Spacer(modifier = Modifier.height(16.dp))
-
               OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
-                label = { Text("Your Registered Email") },
+                onValueChange = { email = it; errorMessage = null; resetEmailSent = false },
+                label = { Text("Registered Email Address") },
+                placeholder = { Text("e.g. aurora@novelite.app", color = Color(0xFF6B7280)) },
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = NoveliteDarkBrown) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier
                   .fillMaxWidth()
                   .testTag("reset_email_input"),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                  focusedBorderColor = NoveliteDarkBrown,
+                  focusedBorderColor = Color(0xFFC88577),
                   unfocusedBorderColor = NoveliteBorder,
-                  focusedTextColor = NoveliteTextPrimary,
-                  unfocusedTextColor = NoveliteTextPrimary
-                )
+                  focusedTextColor = NoveliteDarkBrown,
+                  unfocusedTextColor = NoveliteDarkBrown,
+                  focusedContainerColor = Color.White,
+                  unfocusedContainerColor = Color.White
+                ),
+                singleLine = true
               )
 
               Spacer(modifier = Modifier.height(16.dp))
 
               if (resetEmailSent) {
                 Surface(
-                  color = NoveliteCreamBg,
+                  color = Color(0xFFF5E1DA),
                   shape = RoundedCornerShape(12.dp),
-                  border = androidx.compose.foundation.BorderStroke(1.dp, NoveliteBorder),
                   modifier = Modifier.fillMaxWidth()
                 ) {
                   Text(
-                    text = "✅ Password reset instructions sent to $email!",
+                    text = "✓ Password reset instructions successfully sent to $email.",
                     color = NoveliteDarkBrown,
-                    modifier = Modifier.padding(12.dp),
+                    modifier = Modifier.padding(14.dp),
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.SemiBold
                   )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
               }
 
-              Button(
-                onClick = { resetEmailSent = true },
+              NoveliteButton(
+                text = "Send Reset Link",
+                onClick = {
+                  if (email.isBlank() || !email.contains("@")) {
+                    errorMessage = "Please enter a valid email address."
+                    return@NoveliteButton
+                  }
+                  resetEmailSent = true
+                },
                 modifier = Modifier
                   .fillMaxWidth()
                   .height(48.dp)
                   .testTag("reset_submit_button"),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                  containerColor = NoveliteDarkBrown,
-                  contentColor = NoveliteWhite
-                )
+                style = NoveliteButtonStyle.PRIMARY
+              )
+
+              Spacer(modifier = Modifier.height(20.dp))
+
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
               ) {
-                Text("Send Reset Link", fontWeight = FontWeight.Bold)
+                TextButton(onClick = { selectedTab = 0; errorMessage = null; resetEmailSent = false }) {
+                  Text("Back to Log In", color = Color(0xFFC88577), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
               }
             }
           }
@@ -404,7 +634,7 @@ fun AuthScreen(viewModel: NoveliteViewModel) {
         text = "Every story deserves to be lived.\nEvery day deserves a chapter.",
         fontFamily = FontFamily.Serif,
         style = MaterialTheme.typography.bodySmall,
-        color = NoveliteTextMuted,
+        color = Color(0xFF6B7280),
         textAlign = TextAlign.Center
       )
     }
@@ -681,4 +911,20 @@ private fun RoleChoiceButton(
       )
     }
   }
+}
+
+@Composable
+fun LoginScreen(
+  viewModel: NoveliteViewModel,
+  authViewModel: com.example.ui.AuthenticationViewModel? = null
+) {
+  AuthScreen(viewModel = viewModel, initialTab = 0)
+}
+
+@Composable
+fun SignUpScreen(
+  viewModel: NoveliteViewModel,
+  authViewModel: com.example.ui.AuthenticationViewModel? = null
+) {
+  AuthScreen(viewModel = viewModel, initialTab = 1)
 }

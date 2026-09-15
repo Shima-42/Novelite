@@ -15,7 +15,7 @@ val NoveliteSecondaryText = Color(0xFF6B7280)   // Soft Gray (#6B7280) - Seconda
 
 // Button Specification Colors (Dark brown background #4A2C2A with light cream text #FFF8F6)
 val NoveliteButtonBg = Color(0xFF4A2C2A)
-val NoveliteButtonText = Color(0xFFFFF8F6)
+val NoveliteButtonText = Color(0xFFFFFFFF)
 val NoveliteButtonBorder = Color(0xFF5E3937)
 
 // Aliases mapped strictly to the 7 colors:
